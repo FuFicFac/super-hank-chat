@@ -31,10 +31,23 @@ type ActiveMessage = {
   emittedLen: number;
 };
 
-const sessionProcesses = new Map<string, HermesAdapter>();
-const activeMessageIds = new Map<string, ActiveMessage>();
-const sessionLastActivity = new Map<string, number>();
-const sessionStderrTail = new Map<string, string>();
+// Use globalThis to share state across Next.js route handler module instances
+// (Next.js dev mode can isolate module scope per route, but globalThis is always shared)
+declare global {
+  // eslint-disable-next-line no-var
+  var __hermesSessionProcesses: Map<string, HermesAdapter> | undefined;
+  // eslint-disable-next-line no-var
+  var __hermesActiveMessages: Map<string, ActiveMessage> | undefined;
+  // eslint-disable-next-line no-var
+  var __hermesLastActivity: Map<string, number> | undefined;
+  // eslint-disable-next-line no-var
+  var __hermesStderrTail: Map<string, string> | undefined;
+}
+
+const sessionProcesses = (globalThis.__hermesSessionProcesses ??= new Map<string, HermesAdapter>());
+const activeMessageIds = (globalThis.__hermesActiveMessages ??= new Map<string, ActiveMessage>());
+const sessionLastActivity = (globalThis.__hermesLastActivity ??= new Map<string, number>());
+const sessionStderrTail = (globalThis.__hermesStderrTail ??= new Map<string, string>());
 
 function emit(sessionId: string, ev: ReturnType<typeof sseEvent>) {
   publishStreamEvent(sessionId, ev);

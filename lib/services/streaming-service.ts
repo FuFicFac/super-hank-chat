@@ -6,7 +6,11 @@ export function formatSseMessage(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-const subscribers = new Map<string, Set<Subscriber>>();
+declare global {
+  // eslint-disable-next-line no-var
+  var __hermesSubscribers: Map<string, Set<Subscriber>> | undefined;
+}
+const subscribers = (globalThis.__hermesSubscribers ??= new Map<string, Set<Subscriber>>());
 
 export function publishStreamEvent(sessionId: string, ev: HermesOutboundEvent) {
   const set = subscribers.get(sessionId);
