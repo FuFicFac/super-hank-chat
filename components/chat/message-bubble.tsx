@@ -1,14 +1,16 @@
 import type { Artifact } from "@/lib/artifacts/schema";
 import type { UiMessage } from "@/types/chat";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Volume2 } from "lucide-react";
 import { MessageMarkdown } from "./message-markdown";
 
 export function MessageBubble({
   message,
   onViewArtifact,
+  onSpeak,
 }: {
   message: UiMessage;
   onViewArtifact?: (artifact: Artifact) => void;
+  onSpeak?: (text: string) => void;
 }) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
@@ -49,15 +51,28 @@ export function MessageBubble({
   }
 
   if (isAssistant) {
+    const canSpeak = Boolean(onSpeak) && !message.streaming && message.content.trim();
+
     return (
       <div className="flex justify-start mb-1">
-        <div>
-          <div className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[85%]">
+        <div className="max-w-[85%]">
+          <div className="relative bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tl-sm px-4 py-3 pr-10">
             <MessageMarkdown
               content={message.content || (message.streaming ? "…" : "")}
             />
             {message.streaming ? (
               <span className="mt-2 inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-400" />
+            ) : null}
+            {canSpeak ? (
+              <button
+                type="button"
+                className="absolute right-2 top-2 rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-200/80 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700/80 dark:hover:text-zinc-100"
+                aria-label="Speak this message"
+                title="Speak this message"
+                onClick={() => onSpeak?.(message.content)}
+              >
+                <Volume2 className="h-4 w-4" aria-hidden />
+              </button>
             ) : null}
           </div>
           {message.artifact && onViewArtifact ? (

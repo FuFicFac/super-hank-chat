@@ -31,13 +31,16 @@ type Props = {
   currentArtifact: Artifact | null;
   onCloseArtifact: () => void;
   onViewArtifact: (artifact: Artifact) => void;
+  voiceEnabled?: boolean;
+  onToggleVoice?: () => void;
+  onSpeak?: (text: string) => void;
 };
 
 export function ChatShell(props: Props) {
   const hasArtifact = props.currentArtifact != null;
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      <div className="hidden md:flex">
+    <div className="flex flex-1 min-h-0 flex-row">
+      <div className="flex shrink-0">
         <SessionSidebar
           sessions={props.sessions}
           activeId={props.sessionId}
@@ -47,7 +50,7 @@ export function ChatShell(props: Props) {
         />
       </div>
       <div
-        className={`flex min-h-0 min-w-0 flex-col ${hasArtifact ? "md:w-[55%]" : "flex-1"}`}
+        className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${hasArtifact ? "md:w-[55%]" : "flex-1"}`}
       >
         <ChatHeader
           title={props.title}
@@ -56,8 +59,10 @@ export function ChatShell(props: Props) {
           onConnect={props.onConnect}
           onDisconnect={props.onDisconnect}
           diagnostics={props.diagnostics}
+          voiceEnabled={props.voiceEnabled}
+          onToggleVoice={props.onToggleVoice}
         />
-        <div className="flex min-h-0 flex-1 flex-col bg-surface">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
           {props.messages.length === 0 ? (
             <EmptyState
               title="No messages yet"
@@ -67,6 +72,7 @@ export function ChatShell(props: Props) {
             <MessageList
               messages={props.messages}
               onViewArtifact={props.onViewArtifact}
+              onSpeak={props.onSpeak}
             />
           )}
           <TypingStream visible={Boolean(props.typing)} />
@@ -74,6 +80,7 @@ export function ChatShell(props: Props) {
         <Composer
           disabled={props.composerDisabled}
           onSend={props.onSend}
+          voiceEnabled={props.voiceEnabled}
           placeholder={
             props.connection === "connected"
               ? "Ask Hank anything…"

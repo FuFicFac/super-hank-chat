@@ -3,9 +3,9 @@
 import { AppFrame } from "@/components/layout/app-frame";
 import { ChatShell } from "@/components/chat/chat-shell";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
-import { SessionSidebar } from "@/components/chat/session-sidebar";
 import { useSessionList } from "@/hooks/use-session-list";
 import { useSessionStream } from "@/hooks/use-session-stream";
+import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { parseMessageForArtifact } from "@/lib/artifacts/parser";
 import type { Artifact } from "@/lib/artifacts/schema";
 import {
@@ -47,6 +47,7 @@ export function ChatPageClient({
   const [typing, setTyping] = useState(false);
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null);
   const streamingAssistantRawRef = useRef<Map<string, string>>(new Map());
+  const voice = useVoiceMode();
 
   const loadMessages = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}/messages`);
@@ -259,20 +260,6 @@ export function ChatPageClient({
 
   return (
     <AppFrame>
-      <details className="border-b border-border bg-surface-muted/30 md:hidden">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-zinc-800 marker:hidden dark:text-zinc-100 [&::-webkit-details-marker]:hidden">
-          Sessions
-        </summary>
-        <div className="max-h-64 overflow-y-auto border-t border-border">
-          <SessionSidebar
-            sessions={sortedSessions}
-            activeId={sessionId}
-            loading={sessionsLoading}
-            onCreate={onCreateSession}
-            creating={creatingSession}
-          />
-        </div>
-      </details>
       <ChatShell
         sessionId={sessionId}
         title={title}
@@ -292,6 +279,9 @@ export function ChatPageClient({
         currentArtifact={currentArtifact}
         onCloseArtifact={() => setCurrentArtifact(null)}
         onViewArtifact={(artifact) => setCurrentArtifact(artifact)}
+        voiceEnabled={voice.enabled}
+        onToggleVoice={voice.toggle}
+        onSpeak={voice.speak}
       />
     </AppFrame>
   );

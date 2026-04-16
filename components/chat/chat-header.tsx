@@ -14,6 +14,8 @@ type Props = {
   onConnect: () => void;
   onDisconnect: () => void;
   diagnostics?: string | null;
+  voiceEnabled?: boolean;
+  onToggleVoice?: () => void;
 };
 
 export function ChatHeader({
@@ -23,6 +25,8 @@ export function ChatHeader({
   onConnect,
   onDisconnect,
   diagnostics,
+  voiceEnabled,
+  onToggleVoice,
 }: Props) {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface/90 px-3 py-3 backdrop-blur md:px-6">
@@ -37,7 +41,7 @@ export function ChatHeader({
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <TtsSlot />
+            <TtsSlot enabled={voiceEnabled} onToggle={onToggleVoice} />
             <ThemeToggle />
           </div>
         </div>

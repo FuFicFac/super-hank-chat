@@ -10,9 +10,17 @@ type Props = {
   disabled?: boolean;
   placeholder?: string;
   onSend: (text: string) => void | Promise<void>;
+  voiceEnabled?: boolean;
+  onVoiceTranscript?: (text: string) => void;
 };
 
-export function Composer({ disabled, placeholder, onSend }: Props) {
+export function Composer({
+  disabled,
+  placeholder,
+  onSend,
+  voiceEnabled,
+  onVoiceTranscript,
+}: Props) {
   const [value, setValue] = useState("");
 
   const submit = useCallback(async () => {
@@ -29,11 +37,23 @@ export function Composer({ disabled, placeholder, onSend }: Props) {
     }
   };
 
+  const handleVoiceTranscript = useCallback(
+    (text: string) => {
+      setValue(text);
+      onVoiceTranscript?.(text);
+    },
+    [onVoiceTranscript],
+  );
+
   return (
     <div className="border-t border-border bg-surface/80 p-3 backdrop-blur md:px-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
         <div className="flex items-end gap-2">
-          <SttSlot />
+          <SttSlot
+            voiceEnabled={voiceEnabled}
+            onTranscript={handleVoiceTranscript}
+            disabled={disabled}
+          />
           <Textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
