@@ -1,7 +1,15 @@
+import type { Artifact } from "@/lib/artifacts/schema";
 import type { UiMessage } from "@/types/chat";
+import { ExternalLink } from "lucide-react";
 import { MessageMarkdown } from "./message-markdown";
 
-export function MessageBubble({ message }: { message: UiMessage }) {
+export function MessageBubble({
+  message,
+  onViewArtifact,
+}: {
+  message: UiMessage;
+  onViewArtifact?: (artifact: Artifact) => void;
+}) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const isMeta = message.role === "system" || message.role === "status";
@@ -52,6 +60,16 @@ export function MessageBubble({ message }: { message: UiMessage }) {
               <span className="mt-2 inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-400" />
             ) : null}
           </div>
+          {message.artifact && onViewArtifact ? (
+            <button
+              type="button"
+              className="mt-1.5 ml-1 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+              onClick={() => onViewArtifact(message.artifact!)}
+            >
+              <ExternalLink size={11} />
+              View {message.artifact.title ?? message.artifact.type}
+            </button>
+          ) : null}
           <div className="text-xs text-zinc-400 text-left ml-1 mt-1">
             {timestamp}
           </div>

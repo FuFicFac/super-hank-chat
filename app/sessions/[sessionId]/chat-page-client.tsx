@@ -6,11 +6,16 @@ import type { ConnectionUiState } from "@/components/chat/connection-pill";
 import { SessionSidebar } from "@/components/chat/session-sidebar";
 import { useSessionList } from "@/hooks/use-session-list";
 import { useSessionStream } from "@/hooks/use-session-stream";
-import { sanitizeHermesDiagnosticDelta } from "@/lib/hermes/query-output";
+import { parseMessageForArtifact } from "@/lib/artifacts/parser";
+import type { Artifact } from "@/lib/artifacts/schema";
+import {
+  sanitizeHermesDiagnosticDelta,
+  toVisibleHermesAssistantContent,
+} from "@/lib/hermes/query-output";
 import type { ApiMessage, ApiSessionSummary } from "@/types/api";
 import type { UiMessage } from "@/types/chat";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function toUiMessage(m: ApiMessage): UiMessage {
   return {
@@ -20,6 +25,7 @@ function toUiMessage(m: ApiMessage): UiMessage {
     status: m.status,
     createdAt: m.createdAt,
     streaming: m.status === "streaming",
+    artifact: m.artifact ?? null,
   };
 }
 
@@ -39,6 +45,8 @@ export function ChatPageClient({
   const [creatingSession, setCreatingSession] = useState(false);
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
+  const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null);
+  const streamingAssistantRawRef = useRef<Map<string, string>>(new Map());
 
   const loadMessages = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}/messages`);
@@ -95,6 +103,7 @@ export function ChatPageClient({
     if (type === "message.started") {
       const messageId = typeof payload.messageId === "string" ? payload.messageId : "";
       if (!messageId) return;
+      streamingAssistantRawRef.current.set(messageId, "");
       setTyping(true);
       setMessages((prev) => {
         if (prev.some((m) => m.id === messageId)) return prev;
@@ -116,9 +125,22 @@ export function ChatPageClient({
       const messageId = typeof payload.messageId === "string" ? payload.messageId : "";
       const delta = typeof payload.delta === "string" ? payload.delta : "";
       if (!messageId || !delta) return;
+      const prevRaw = streamingAssistantRawRef.current.get(messageId) ?? "";
+      const raw = prevRaw + delta;
+      streamingAssistantRawRef.current.set(messageId, raw);
+      const visible = toVisibleHermesAssistantContent(raw);
+      const { prose, artifact } = parseMessageForArtifact(visible);
+      if (artifact) setCurrentArtifact(artifact);
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === messageId ? { ...m, content: m.content + delta, streaming: true } : m,
+          m.id === messageId
+            ? {
+                ...m,
+                content: prose,
+                artifact: artifact ?? m.artifact ?? null,
+                streaming: true,
+              }
+            : m,
         ),
       );
       return;
@@ -126,11 +148,21 @@ export function ChatPageClient({
     if (type === "message.completed") {
       const messageId = typeof payload.messageId === "string" ? payload.messageId : "";
       const content = typeof payload.content === "string" ? payload.content : "";
+      streamingAssistantRawRef.current.delete(messageId);
+      const visible = toVisibleHermesAssistantContent(content);
+      const { prose, artifact } = parseMessageForArtifact(visible);
+      if (artifact) setCurrentArtifact(artifact);
       setTyping(false);
       setMessages((prev) =>
         prev.map((m) =>
           m.id === messageId
-            ? { ...m, content: content || m.content, status: "complete", streaming: false }
+            ? {
+                ...m,
+                content: prose || m.content,
+                artifact: artifact ?? m.artifact ?? null,
+                status: "complete",
+                streaming: false,
+              }
             : m,
         ),
       );
@@ -257,6 +289,9 @@ export function ChatPageClient({
         onSend={onSend}
         onCreateSession={onCreateSession}
         creatingSession={creatingSession}
+        currentArtifact={currentArtifact}
+        onCloseArtifact={() => setCurrentArtifact(null)}
+        onViewArtifact={(artifact) => setCurrentArtifact(artifact)}
       />
     </AppFrame>
   );

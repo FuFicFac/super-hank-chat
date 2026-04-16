@@ -1,3 +1,5 @@
+import type { Artifact } from "@/lib/artifacts/schema";
+
 export type ApiSessionSummary = {
   id: string;
   title: string;
@@ -18,4 +20,5 @@ export type ApiMessage = {
   content: string;
   status: string;
   createdAt: number;
+  artifact?: Artifact | null;
 };

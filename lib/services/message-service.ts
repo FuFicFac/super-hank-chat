@@ -1,5 +1,6 @@
 import type { HankDatabase } from "@/lib/db/client";
 import { getDb } from "@/lib/db/client";
+import { parseMessageForArtifact } from "@/lib/artifacts/parser";
 import {
   insertMessage,
   listMessagesForSession,
@@ -14,6 +15,17 @@ export function listMessagesService(sessionId: string): ApiMessage[] {
     const content =
       m.role === "assistant" ? toVisibleHermesAssistantContent(m.content) : m.content;
     if (m.role === "assistant" && !content) return [];
+    if (m.role === "assistant") {
+      const { prose, artifact } = parseMessageForArtifact(content);
+      return [{
+        id: m.id,
+        role: m.role,
+        content: prose,
+        status: m.status,
+        createdAt: m.createdAt,
+        artifact: artifact ?? null,
+      }];
+    }
     return [{
       id: m.id,
       role: m.role,

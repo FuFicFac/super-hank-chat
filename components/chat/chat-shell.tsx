@@ -1,5 +1,6 @@
 "use client";
 
+import { ArtifactPanel } from "@/components/artifact/artifact-panel";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { Composer } from "@/components/chat/composer";
 import { EmptyState } from "@/components/chat/empty-state";
@@ -7,6 +8,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { SessionSidebar } from "@/components/chat/session-sidebar";
 import { TypingStream } from "@/components/chat/typing-stream";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
+import type { Artifact } from "@/lib/artifacts/schema";
 import type { ApiSessionSummary } from "@/types/api";
 import type { UiMessage } from "@/types/chat";
 
@@ -26,9 +28,13 @@ type Props = {
   onSend: (text: string) => void | Promise<void>;
   onCreateSession: () => void;
   creatingSession?: boolean;
+  currentArtifact: Artifact | null;
+  onCloseArtifact: () => void;
+  onViewArtifact: (artifact: Artifact) => void;
 };
 
 export function ChatShell(props: Props) {
+  const hasArtifact = props.currentArtifact != null;
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
       <div className="hidden md:flex">
@@ -40,7 +46,9 @@ export function ChatShell(props: Props) {
           creating={props.creatingSession}
         />
       </div>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-h-0 min-w-0 flex-col ${hasArtifact ? "md:w-[55%]" : "flex-1"}`}
+      >
         <ChatHeader
           title={props.title}
           connection={props.connection}
@@ -56,7 +64,10 @@ export function ChatShell(props: Props) {
               description="Connect to Hermes, then send a prompt. Your history is saved locally in SQLite."
             />
           ) : (
-            <MessageList messages={props.messages} />
+            <MessageList
+              messages={props.messages}
+              onViewArtifact={props.onViewArtifact}
+            />
           )}
           <TypingStream visible={Boolean(props.typing)} />
         </div>
@@ -70,6 +81,14 @@ export function ChatShell(props: Props) {
           }
         />
       </div>
+      {hasArtifact && props.currentArtifact ? (
+        <div className="hidden min-h-0 md:flex md:w-[45%] md:flex-col border-l border-zinc-200 dark:border-zinc-700">
+          <ArtifactPanel
+            artifact={props.currentArtifact}
+            onClose={props.onCloseArtifact}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
