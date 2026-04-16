@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "highlight.js/styles/github-dark.css";
+
+:root {
+  --surface: 220 14% 96%;
+  --surface-muted: 220 14% 92%;
+  --surface-elevated: 0 0% 100%;
+  --border: 220 13% 84%;
+  --ring: 142 72% 35%;
+}
+
+.dark {
+  --surface: 222 14% 12%;
+  --surface-muted: 222 14% 16%;
+  --surface-elevated: 222 14% 18%;
+  --border: 222 12% 24%;
+  --ring: 142 72% 45%;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: hsl(var(--surface));
+}
