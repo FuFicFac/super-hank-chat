@@ -35,7 +35,7 @@ type ActiveMessage = {
 // (Next.js dev mode can isolate module scope per route, but globalThis is always shared)
 declare global {
   // eslint-disable-next-line no-var
-  var __hermesSessionProcesses: Map<string, HermesAdapter> | undefined;
+  var __hermesQueryAdapters: Map<string, HermesAdapter> | undefined;
   // eslint-disable-next-line no-var
   var __hermesActiveMessages: Map<string, ActiveMessage> | undefined;
   // eslint-disable-next-line no-var
@@ -44,7 +44,8 @@ declare global {
   var __hermesStderrTail: Map<string, string> | undefined;
 }
 
-const sessionProcesses = (globalThis.__hermesSessionProcesses ??= new Map<string, HermesAdapter>());
+// Per-query adapters — only present while a query is in-flight
+const activeQueryAdapters = (globalThis.__hermesQueryAdapters ??= new Map<string, HermesAdapter>());
 const activeMessageIds = (globalThis.__hermesActiveMessages ??= new Map<string, ActiveMessage>());
 const sessionLastActivity = (globalThis.__hermesLastActivity ??= new Map<string, number>());
 const sessionStderrTail = (globalThis.__hermesStderrTail ??= new Map<string, string>());
@@ -216,66 +217,7 @@ function handleStdoutDelta(sessionId: string, delta: string) {
   }
 }
 
-function handleProcessExit(sessionId: string, code: number | null, signal: NodeJS.Signals | null) {
-  const hadAdapter = sessionProcesses.has(sessionId);
-  sessionProcesses.delete(sessionId);
-  sessionStderrTail.delete(sessionId);
-  sessionLastActivity.delete(sessionId);
-
-  if (activeMessageIds.has(sessionId)) {
-    finalizeAssistantMessage(sessionId);
-  }
-
-  if (!hadAdapter) return;
-
-  const db = getDb();
-  updateSession(db, sessionId, {
-    status: "disconnected",
-    lastDisconnectedAt: Math.floor(Date.now() / 1000),
-  });
-  touchSession(db, sessionId);
-  appendSessionEvent(db, {
-    sessionId,
-    type: "session.disconnected",
-    payload: { reason: "exit", code, signal },
-  });
-  emit(sessionId, sseEvent("session.disconnected", { sessionId, reason: "exit" }));
-}
-
-function handleProcessError(sessionId: string, err: Error) {
-  const hadAdapter = sessionProcesses.has(sessionId);
-  sessionProcesses.delete(sessionId);
-  sessionStderrTail.delete(sessionId);
-  sessionLastActivity.delete(sessionId);
-
-  if (activeMessageIds.has(sessionId)) {
-    finalizeAssistantMessage(sessionId);
-  }
-
-  if (!hadAdapter) return;
-
-  const db = getDb();
-  updateSession(db, sessionId, {
-    status: "error",
-    lastDisconnectedAt: Math.floor(Date.now() / 1000),
-  });
-  touchSession(db, sessionId);
-  appendSessionEvent(db, {
-    sessionId,
-    type: "process.error",
-    payload: { message: err.message, code: (err as NodeJS.ErrnoException).code },
-  });
-  emit(
-    sessionId,
-    sseEvent("session.error", {
-      sessionId,
-      message: err.message,
-      code: (err as NodeJS.ErrnoException).code,
-    }),
-  );
-}
-
-function wireAdapter(sessionId: string, adapter: HermesAdapter) {
+function wireQueryAdapter(sessionId: string, adapter: HermesAdapter) {
   adapter.on("stdout", (plainDelta: string) => {
     handleStdoutDelta(sessionId, plainDelta);
   });
@@ -294,16 +236,36 @@ function wireAdapter(sessionId: string, adapter: HermesAdapter) {
       payload: { delta },
     });
   });
-  adapter.on("exit", (code, signal) => {
-    handleProcessExit(sessionId, code, signal);
+  adapter.on("exit", () => {
+    activeQueryAdapters.delete(sessionId);
+    // Finalize if still pending (process exited before session_id line was seen)
+    if (activeMessageIds.has(sessionId)) {
+      finalizeAssistantMessage(sessionId);
+    }
   });
   adapter.on("error", (err) => {
-    handleProcessError(sessionId, err);
+    activeQueryAdapters.delete(sessionId);
+    if (activeMessageIds.has(sessionId)) {
+      finalizeAssistantMessage(sessionId);
+    }
+    appendSessionEvent(getDb(), {
+      sessionId,
+      type: "process.error",
+      payload: { message: err.message, code: (err as NodeJS.ErrnoException).code },
+    });
+    emit(
+      sessionId,
+      sseEvent("session.error", {
+        sessionId,
+        message: err.message,
+        code: (err as NodeJS.ErrnoException).code,
+      }),
+    );
   });
 }
 
 export function getRuntimeStatus(sessionId: string) {
-  const adapter = sessionProcesses.get(sessionId);
+  const adapter = activeQueryAdapters.get(sessionId);
   const active = activeMessageIds.get(sessionId);
   return {
     status: adapter ? ("connected" as const) : ("disconnected" as const),
@@ -319,15 +281,6 @@ export function connectSession(sessionId: string): { ok: true } | { ok: false; e
   const session = getSessionById(db, sessionId);
   if (!session) return { ok: false, error: "Session not found" };
 
-  if (sessionProcesses.has(sessionId)) {
-    return { ok: true };
-  }
-
-  const adapter = new HermesAdapter();
-  wireAdapter(sessionId, adapter);
-  adapter.start({ args: ["chat", "-Q"] });
-  sessionProcesses.set(sessionId, adapter);
-
   updateSession(db, sessionId, {
     status: "connected",
     lastConnectedAt: Math.floor(Date.now() / 1000),
@@ -339,8 +292,9 @@ export function connectSession(sessionId: string): { ok: true } | { ok: false; e
 }
 
 export function disconnectSession(sessionId: string) {
-  const adapter = sessionProcesses.get(sessionId);
-  sessionProcesses.delete(sessionId);
+  // Kill any in-flight query
+  const adapter = activeQueryAdapters.get(sessionId);
+  activeQueryAdapters.delete(sessionId);
   sessionStderrTail.delete(sessionId);
   sessionLastActivity.delete(sessionId);
 
@@ -377,15 +331,18 @@ export function sendToHermes(
   const session = getSessionById(db, sessionId);
   if (!session) return { ok: false, error: "Session not found" };
 
-  const adapter = sessionProcesses.get(sessionId);
-  if (!adapter) {
-    return { ok: false, error: "Not connected" };
-  }
   if (session.status !== "connected") {
     return { ok: false, error: "Not connected" };
   }
   if (activeMessageIds.has(sessionId)) {
     return { ok: false, error: "Still responding" };
+  }
+
+  // Build per-query args — resume prior Hermes session if available
+  const metadata = parseSessionMetadata(session.metadataJson);
+  const args = ["chat", "-Q", "-q", text];
+  if (metadata.hermesSessionId) {
+    args.push("--resume", metadata.hermesSessionId);
   }
 
   const messageId = beginAssistantMessage(sessionId);
@@ -396,6 +353,11 @@ export function sendToHermes(
     emittedLen: 0,
   });
   resetIdleTimer(sessionId);
-  adapter.sendMessage(text);
+
+  const adapter = new HermesAdapter();
+  activeQueryAdapters.set(sessionId, adapter);
+  wireQueryAdapter(sessionId, adapter);
+  adapter.start({ args });
+
   return { ok: true };
 }
