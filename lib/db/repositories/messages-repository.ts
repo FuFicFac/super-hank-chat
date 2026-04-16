@@ -1,5 +1,5 @@
 import { asc, desc, eq, max, sql } from "drizzle-orm";
-import { persistDb, type HankDatabase } from "../client";
+import type { HankDatabase } from "../client";
 import { chatMessages, type ChatMessageRow } from "../schema";
 import { newMessageId } from "@/lib/utils/ids";
 import { nowUnixSeconds } from "@/lib/utils/time";
@@ -53,7 +53,6 @@ export function insertMessage(
     metadataJson: input.metadataJson ?? null,
   };
   db.insert(chatMessages).values(row).run();
-  persistDb();
   return db.select().from(chatMessages).where(eq(chatMessages.id, id)).get()!;
 }
 
@@ -71,12 +70,10 @@ export function updateMessageContent(
     })
     .where(eq(chatMessages.id, messageId))
     .run();
-  persistDb();
 }
 
 export function deleteMessageById(db: HankDatabase, messageId: string) {
   db.delete(chatMessages).where(eq(chatMessages.id, messageId)).run();
-  persistDb();
 }
 
 export function getMessageById(

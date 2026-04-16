@@ -1,4 +1,4 @@
-export const APP_NAME = "Hank Chat";
+export const APP_NAME = "Super Hank Chat";
 
 /** Idle time (ms) with no stdout before assistant message is considered complete */
 export const HERMES_MESSAGE_IDLE_MS = 900;

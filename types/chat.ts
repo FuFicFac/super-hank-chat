@@ -1,3 +1,5 @@
+import type { Artifact } from "@/lib/artifacts/schema";
+
 export type ChatMessageRole = "user" | "assistant" | "system" | "status";
 
 export type UiMessage = {
@@ -7,4 +9,6 @@ export type UiMessage = {
   status: string;
   createdAt: number;
   streaming?: boolean;
+  /** Parsed artifact attached to this message, if any */
+  artifact?: Artifact | null;
 };

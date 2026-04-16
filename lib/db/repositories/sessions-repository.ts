@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import { persistDb, type HankDatabase } from "../client";
+import type { HankDatabase } from "../client";
 import { chatMessages, chatSessions, type ChatSessionRow } from "../schema";
 import { newSessionId } from "@/lib/utils/ids";
 import { nowUnixSeconds } from "@/lib/utils/time";
@@ -52,7 +52,6 @@ export function createSession(
     metadataJson: null,
   };
   db.insert(chatSessions).values(row).run();
-  persistDb();
   return getSessionById(db, id)!;
 }
 
@@ -77,7 +76,6 @@ export function updateSession(
     .set({ ...patch, updatedAt })
     .where(eq(chatSessions.id, sessionId))
     .run();
-  persistDb();
   return getSessionById(db, sessionId);
 }
 
@@ -91,7 +89,6 @@ export function resetAllConnectedToDisconnected(db: HankDatabase) {
     })
     .where(eq(chatSessions.status, "connected"))
     .run();
-  persistDb();
 }
 
 export function touchSession(db: HankDatabase, sessionId: string) {
@@ -99,5 +96,4 @@ export function touchSession(db: HankDatabase, sessionId: string) {
     .set({ updatedAt: nowUnixSeconds() })
     .where(eq(chatSessions.id, sessionId))
     .run();
-  persistDb();
 }

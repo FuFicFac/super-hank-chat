@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { persistDb, type HankDatabase } from "../client";
+import type { HankDatabase } from "../client";
 import { sessionEvents, type SessionEventRow } from "../schema";
 import { newEventId } from "@/lib/utils/ids";
 import { nowUnixSeconds } from "@/lib/utils/time";
@@ -22,7 +22,6 @@ export function appendSessionEvent(
     createdAt: nowUnixSeconds(),
   };
   db.insert(sessionEvents).values(row).run();
-  persistDb();
   return db.select().from(sessionEvents).where(eq(sessionEvents.id, id)).get()!;
 }
 

@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: process.env.DATABASE_PATH || "./data/hank-chat.db",
+    url: process.env.DATABASE_PATH || "./data/super-hank-chat.db",
   },
 });

@@ -9,8 +9,8 @@ export function MessageList({ messages }: { messages: UiMessage[] }) {
   const { ref } = useAutoScroll<HTMLDivElement>([messages]);
 
   return (
-    <ScrollArea ref={ref} className="flex-1 px-3 py-4 md:px-6">
-      <div className="mx-auto flex max-w-3xl flex-col gap-3">
+    <ScrollArea ref={ref} className="flex-1">
+      <div className="flex flex-col gap-2 px-4 py-4">
         {messages.map((m) => (
           <MessageBubble key={m.id} message={m} />
         ))}
