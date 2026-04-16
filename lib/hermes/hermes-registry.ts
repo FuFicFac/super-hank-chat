@@ -1,12 +1,6 @@
-import { spawn, type ChildProcessByStdio } from "child_process";
-import type { Readable } from "stream";
 import { getDb } from "@/lib/db/client";
 import { appendSessionEvent } from "@/lib/db/repositories/events-repository";
-import {
-  deleteMessageById,
-  insertMessage,
-  updateMessageContent,
-} from "@/lib/db/repositories/messages-repository";
+import { deleteMessageById, insertMessage, updateMessageContent } from "@/lib/db/repositories/messages-repository";
 import {
   getSessionById,
   touchSession,
@@ -15,26 +9,39 @@ import {
 import { publishStreamEvent } from "@/lib/services/streaming-service";
 import { newMessageId } from "@/lib/utils/ids";
 import { nowUnixMs } from "@/lib/utils/time";
-import { buildHermesQueryArgs, extractHermesQueryResult, sanitizeHermesDiagnosticDelta } from "./query-output";
+import {
+  extractHermesQueryResult,
+  HERMES_SESSION_ID_RE,
+  normalizeNewlines,
+  sanitizeHermesDiagnosticDelta,
+} from "./query-output";
+import { HermesAdapter } from "./hermes-adapter";
 import { sseEvent } from "./hermes-events";
+
+const IDLE_MS = 90_000;
 
 type SessionMetadata = {
   hermesSessionId?: string;
 };
 
-type ActiveRun = {
-  child: ChildProcessByStdio<null, Readable, Readable>;
+type ActiveMessage = {
   messageId: string;
-  startedAt: number;
-  lastActivityAt: number;
-  stderrTail: string;
+  buffer: string;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+  emittedLen: number;
 };
 
-const activeRuns = new Map<string, ActiveRun>();
-const DEFAULT_CMD = process.env.HERMES_BIN ?? "hermes";
+const sessionProcesses = new Map<string, HermesAdapter>();
+const activeMessageIds = new Map<string, ActiveMessage>();
+const sessionLastActivity = new Map<string, number>();
+const sessionStderrTail = new Map<string, string>();
 
 function emit(sessionId: string, ev: ReturnType<typeof sseEvent>) {
   publishStreamEvent(sessionId, ev);
+}
+
+function touchActivity(sessionId: string) {
+  sessionLastActivity.set(sessionId, nowUnixMs());
 }
 
 function parseSessionMetadata(metadataJson: string | null | undefined): SessionMetadata {
@@ -56,6 +63,56 @@ function writeSessionMetadata(sessionId: string, patch: SessionMetadata) {
     ...patch,
   };
   updateSession(db, sessionId, { metadataJson: JSON.stringify(merged) });
+}
+
+function getDisplayableContent(buf: string, streaming: boolean): string {
+  const n = normalizeNewlines(buf);
+  const lines = n.split("\n");
+  const sidIdx = lines.findIndex((l) => HERMES_SESSION_ID_RE.test(l.trim()));
+
+  if (sidIdx >= 0) {
+    return lines.slice(0, sidIdx).join("\n");
+  }
+
+  if (!streaming) {
+    return n;
+  }
+
+  if (!n.endsWith("\n") && lines.length > 0) {
+    return lines.slice(0, -1).join("\n");
+  }
+  return n;
+}
+
+function bufferHasSessionIdLine(buf: string): boolean {
+  const n = normalizeNewlines(buf);
+  return n.split("\n").some((l) => HERMES_SESSION_ID_RE.test(l.trim()));
+}
+
+function flushStreamable(sessionId: string, active: ActiveMessage, streaming: boolean) {
+  const text = getDisplayableContent(active.buffer, streaming);
+  if (text.length <= active.emittedLen) return;
+  const delta = text.slice(active.emittedLen);
+  active.emittedLen = text.length;
+  if (!delta) return;
+  emit(sessionId, sseEvent("message.delta", { sessionId, messageId: active.messageId, delta }));
+}
+
+function clearIdleTimer(active: ActiveMessage) {
+  if (active.idleTimer) {
+    clearTimeout(active.idleTimer);
+    active.idleTimer = null;
+  }
+}
+
+function resetIdleTimer(sessionId: string) {
+  const active = activeMessageIds.get(sessionId);
+  if (!active) return;
+  clearIdleTimer(active);
+  active.idleTimer = setTimeout(() => {
+    finalizeAssistantMessage(sessionId);
+  }, IDLE_MS);
+  active.idleTimer.unref?.();
 }
 
 function beginAssistantMessage(sessionId: string): string {
@@ -89,16 +146,15 @@ function completeAssistantMessage(sessionId: string, messageId: string, content:
   appendSessionEvent(db, {
     sessionId,
     type: "assistant.completed",
-    payload: { messageId, reason: "process-exit" },
+    payload: { messageId, reason: "session-id-line" },
   });
-  emit(sessionId, sseEvent("message.delta", { sessionId, messageId, delta: finalContent }));
   emit(
     sessionId,
     sseEvent("message.completed", {
       sessionId,
       messageId,
       content: finalContent,
-      reason: "process-exit",
+      reason: "session-id-line",
     }),
   );
 }
@@ -112,27 +168,136 @@ function failAssistantMessage(sessionId: string, messageId: string) {
   });
 }
 
-function markDisconnected(sessionId: string, reason: "disconnect" | "exit" | "error") {
+function finalizeAssistantMessage(sessionId: string) {
+  const active = activeMessageIds.get(sessionId);
+  if (!active) return;
+
+  flushStreamable(sessionId, active, false);
+
+  clearIdleTimer(active);
+  const { messageId, buffer } = active;
+  activeMessageIds.delete(sessionId);
+
+  const result = extractHermesQueryResult(buffer);
+  if (result.sessionId) {
+    writeSessionMetadata(sessionId, { hermesSessionId: result.sessionId });
+  }
+  if (result.content) {
+    completeAssistantMessage(sessionId, messageId, result.content);
+  } else {
+    failAssistantMessage(sessionId, messageId);
+  }
+}
+
+function handleStdoutDelta(sessionId: string, delta: string) {
+  touchActivity(sessionId);
+  const active = activeMessageIds.get(sessionId);
+  if (!active) return;
+
+  active.buffer += delta;
+  resetIdleTimer(sessionId);
+  flushStreamable(sessionId, active, true);
+
+  if (bufferHasSessionIdLine(active.buffer)) {
+    finalizeAssistantMessage(sessionId);
+  }
+}
+
+function handleProcessExit(sessionId: string, code: number | null, signal: NodeJS.Signals | null) {
+  const hadAdapter = sessionProcesses.has(sessionId);
+  sessionProcesses.delete(sessionId);
+  sessionStderrTail.delete(sessionId);
+  sessionLastActivity.delete(sessionId);
+
+  if (activeMessageIds.has(sessionId)) {
+    finalizeAssistantMessage(sessionId);
+  }
+
+  if (!hadAdapter) return;
+
   const db = getDb();
   updateSession(db, sessionId, {
-    status: reason === "error" ? "error" : "disconnected",
+    status: "disconnected",
     lastDisconnectedAt: Math.floor(Date.now() / 1000),
   });
+  touchSession(db, sessionId);
   appendSessionEvent(db, {
     sessionId,
     type: "session.disconnected",
-    payload: { reason },
+    payload: { reason: "exit", code, signal },
   });
-  emit(sessionId, sseEvent("session.disconnected", { sessionId, reason }));
+  emit(sessionId, sseEvent("session.disconnected", { sessionId, reason: "exit" }));
+}
+
+function handleProcessError(sessionId: string, err: Error) {
+  const hadAdapter = sessionProcesses.has(sessionId);
+  sessionProcesses.delete(sessionId);
+  sessionStderrTail.delete(sessionId);
+  sessionLastActivity.delete(sessionId);
+
+  if (activeMessageIds.has(sessionId)) {
+    finalizeAssistantMessage(sessionId);
+  }
+
+  if (!hadAdapter) return;
+
+  const db = getDb();
+  updateSession(db, sessionId, {
+    status: "error",
+    lastDisconnectedAt: Math.floor(Date.now() / 1000),
+  });
+  touchSession(db, sessionId);
+  appendSessionEvent(db, {
+    sessionId,
+    type: "process.error",
+    payload: { message: err.message, code: (err as NodeJS.ErrnoException).code },
+  });
+  emit(
+    sessionId,
+    sseEvent("session.error", {
+      sessionId,
+      message: err.message,
+      code: (err as NodeJS.ErrnoException).code,
+    }),
+  );
+}
+
+function wireAdapter(sessionId: string, adapter: HermesAdapter) {
+  adapter.on("stdout", (plainDelta: string) => {
+    handleStdoutDelta(sessionId, plainDelta);
+  });
+  adapter.on("stderr", (rawDelta: string) => {
+    touchActivity(sessionId);
+    const delta = sanitizeHermesDiagnosticDelta(rawDelta);
+    if (delta) {
+      const prev = sessionStderrTail.get(sessionId) ?? "";
+      sessionStderrTail.set(sessionId, (prev + delta).slice(-4000));
+    }
+    if (!delta) return;
+    emit(sessionId, sseEvent("stderr.delta", { sessionId, delta }));
+    appendSessionEvent(getDb(), {
+      sessionId,
+      type: "stderr",
+      payload: { delta },
+    });
+  });
+  adapter.on("exit", (code, signal) => {
+    handleProcessExit(sessionId, code, signal);
+  });
+  adapter.on("error", (err) => {
+    handleProcessError(sessionId, err);
+  });
 }
 
 export function getRuntimeStatus(sessionId: string) {
-  const run = activeRuns.get(sessionId);
+  const adapter = sessionProcesses.get(sessionId);
+  const active = activeMessageIds.get(sessionId);
   return {
-    status: run ? ("connected" as const) : ("disconnected" as const),
-    hasActiveProcess: Boolean(run),
-    lastActivityAt: run?.lastActivityAt ?? null,
-    stderrTail: run?.stderrTail ?? "",
+    status: adapter ? ("connected" as const) : ("disconnected" as const),
+    hasActiveProcess: Boolean(adapter),
+    hasActiveMessage: Boolean(active),
+    lastActivityAt: sessionLastActivity.get(sessionId) ?? null,
+    stderrTail: sessionStderrTail.get(sessionId) ?? "",
   };
 }
 
@@ -140,6 +305,15 @@ export function connectSession(sessionId: string): { ok: true } | { ok: false; e
   const db = getDb();
   const session = getSessionById(db, sessionId);
   if (!session) return { ok: false, error: "Session not found" };
+
+  if (sessionProcesses.has(sessionId)) {
+    return { ok: true };
+  }
+
+  const adapter = new HermesAdapter();
+  wireAdapter(sessionId, adapter);
+  adapter.start({ args: ["chat", "-Q"] });
+  sessionProcesses.set(sessionId, adapter);
 
   updateSession(db, sessionId, {
     status: "connected",
@@ -152,17 +326,34 @@ export function connectSession(sessionId: string): { ok: true } | { ok: false; e
 }
 
 export function disconnectSession(sessionId: string) {
-  const run = activeRuns.get(sessionId);
-  if (run) {
-    activeRuns.delete(sessionId);
-    failAssistantMessage(sessionId, run.messageId);
-    try {
-      run.child.kill("SIGTERM");
-    } catch {
-      /* ignore */
-    }
+  const adapter = sessionProcesses.get(sessionId);
+  sessionProcesses.delete(sessionId);
+  sessionStderrTail.delete(sessionId);
+  sessionLastActivity.delete(sessionId);
+
+  if (adapter) {
+    adapter.stop();
   }
-  markDisconnected(sessionId, "disconnect");
+
+  const active = activeMessageIds.get(sessionId);
+  if (active) {
+    clearIdleTimer(active);
+    activeMessageIds.delete(sessionId);
+    failAssistantMessage(sessionId, active.messageId);
+  }
+
+  const db = getDb();
+  updateSession(db, sessionId, {
+    status: "disconnected",
+    lastDisconnectedAt: Math.floor(Date.now() / 1000),
+  });
+  touchSession(db, sessionId);
+  appendSessionEvent(db, {
+    sessionId,
+    type: "session.disconnected",
+    payload: { reason: "disconnect" },
+  });
+  emit(sessionId, sseEvent("session.disconnected", { sessionId, reason: "disconnect" }));
 }
 
 export function sendToHermes(
@@ -172,119 +363,26 @@ export function sendToHermes(
   const db = getDb();
   const session = getSessionById(db, sessionId);
   if (!session) return { ok: false, error: "Session not found" };
+
+  const adapter = sessionProcesses.get(sessionId);
+  if (!adapter) {
+    return { ok: false, error: "Not connected" };
+  }
   if (session.status !== "connected") {
-    return { ok: false, error: "Hermes is not connected for this session" };
+    return { ok: false, error: "Not connected" };
   }
-  if (activeRuns.has(sessionId)) {
-    return { ok: false, error: "Hermes is still responding to the previous message" };
+  if (activeMessageIds.has(sessionId)) {
+    return { ok: false, error: "Still responding" };
   }
 
-  const metadata = parseSessionMetadata(session.metadataJson);
   const messageId = beginAssistantMessage(sessionId);
-  const args = buildHermesQueryArgs(text, metadata.hermesSessionId ?? null);
-  const child = spawn(DEFAULT_CMD, args, {
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: false,
-    env: {
-      ...process.env,
-      TERM: "dumb",
-      NO_COLOR: "1",
-    },
-  });
-
-  activeRuns.set(sessionId, {
-    child,
+  activeMessageIds.set(sessionId, {
     messageId,
-    startedAt: nowUnixMs(),
-    lastActivityAt: nowUnixMs(),
-    stderrTail: "",
+    buffer: "",
+    idleTimer: null,
+    emittedLen: 0,
   });
-
-  let stdout = "";
-  let stderr = "";
-
-  child.stdout.on("data", (buf: Buffer) => {
-    stdout += buf.toString("utf8");
-    const run = activeRuns.get(sessionId);
-    if (run) run.lastActivityAt = nowUnixMs();
-  });
-
-  child.stderr.on("data", (buf: Buffer) => {
-    const rawDelta = buf.toString("utf8");
-    stderr += rawDelta;
-    const delta = sanitizeHermesDiagnosticDelta(rawDelta);
-    const run = activeRuns.get(sessionId);
-    if (run) {
-      run.lastActivityAt = nowUnixMs();
-      if (delta) {
-        run.stderrTail = (run.stderrTail + delta).slice(-4000);
-      }
-    }
-    if (!delta) return;
-    emit(sessionId, sseEvent("stderr.delta", { sessionId, delta }));
-    appendSessionEvent(getDb(), {
-      sessionId,
-      type: "stderr",
-      payload: { delta },
-    });
-  });
-
-  child.on("error", (err) => {
-    activeRuns.delete(sessionId);
-    failAssistantMessage(sessionId, messageId);
-    appendSessionEvent(getDb(), {
-      sessionId,
-      type: "process.error",
-      payload: { message: err.message, code: (err as NodeJS.ErrnoException).code },
-    });
-    emit(
-      sessionId,
-      sseEvent("session.error", {
-        sessionId,
-        message: err.message,
-        code: (err as NodeJS.ErrnoException).code,
-      }),
-    );
-  });
-
-  child.on("close", (code, signal) => {
-    // If disconnectSession() already removed this run and cleaned up, bail out.
-    // Without this guard, a SIGTERM'd process would double-call fail/complete handlers.
-    const alreadyAborted = !activeRuns.has(sessionId);
-    activeRuns.delete(sessionId);
-    if (alreadyAborted) return;
-
-    const result = extractHermesQueryResult(stdout);
-    const visibleStderr = sanitizeHermesDiagnosticDelta(stderr).trim();
-    if (result.sessionId) {
-      writeSessionMetadata(sessionId, { hermesSessionId: result.sessionId });
-    }
-
-    if (result.content) {
-      completeAssistantMessage(sessionId, messageId, result.content);
-      return;
-    }
-
-    failAssistantMessage(sessionId, messageId);
-
-    const errorMessage = result.error ?? visibleStderr;
-    if (code !== 0 || errorMessage) {
-      appendSessionEvent(getDb(), {
-        sessionId,
-        type: "process.exit",
-        payload: { code, signal, stderr: errorMessage ?? "" },
-      });
-      emit(
-        sessionId,
-        sseEvent("session.error", {
-          sessionId,
-          message: errorMessage || `Hermes exited with code ${code ?? "unknown"}`,
-          code,
-          signal,
-        }),
-      );
-    }
-  });
-
+  resetIdleTimer(sessionId);
+  adapter.sendMessage(text);
   return { ok: true };
 }

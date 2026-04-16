@@ -1,5 +1,6 @@
 const HERMES_HEADER_RE = /^╭─\s*⚕\s*Hermes\b.*$/u;
-const HERMES_SESSION_ID_RE = /^session_id:\s*(\S+)\s*$/i;
+/** Exported for streaming: detect end-of-response line in Hermes quiet mode. */
+export const HERMES_SESSION_ID_RE = /^session_id:\s*(\S+)\s*$/i;
 const HERMES_RESUME_RE = /^↻\s+Resumed session\b.*$/u;
 const BENIGN_STDERR_LINE_RES = [/^MemPalace MCP Server starting\.\.\.\s*$/i];
 const STDOUT_ERROR_LINE_RES = [/^API call failed after \d+ retries:/i];
@@ -10,7 +11,7 @@ export type HermesQueryResult = {
   sessionId: string | null;
 };
 
-function normalizeNewlines(raw: string): string {
+export function normalizeNewlines(raw: string): string {
   return raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
@@ -109,8 +110,3 @@ export function extractHermesQueryResult(raw: string): HermesQueryResult {
   return { ...classified, sessionId };
 }
 
-export function buildHermesQueryArgs(text: string, sessionId?: string | null): string[] {
-  return sessionId
-    ? ["--continue", sessionId, "chat", "-Q", "-q", text]
-    : ["chat", "-Q", "-q", text];
-}

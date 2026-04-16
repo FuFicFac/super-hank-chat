@@ -2,6 +2,7 @@
 
 import { preprocessAssistantMarkdown } from "@/lib/utils/markdown";
 import ReactMarkdown, { type Components } from "react-markdown";
+import { isValidElement } from "react";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { useRef, useState } from "react";
@@ -18,8 +19,8 @@ export function MessageMarkdown({ content }: { content: string }) {
 
       // Handle code element inside pre
       const codeElement = Array.isArray(children)
-        ? children.find((child) => child?.type === "code")
-        : children?.type === "code"
+        ? children.find((child) => isValidElement(child) && child.type === "code")
+        : isValidElement(children) && children.type === "code"
           ? children
           : null;
 
