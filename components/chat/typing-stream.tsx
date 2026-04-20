@@ -3,10 +3,17 @@
 export function TypingStream({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
-    <div className="flex justify-start px-3 md:px-6">
-      <div className="rounded-2xl bg-surface-elevated px-4 py-2 text-xs text-zinc-500 ring-1 ring-border dark:bg-zinc-900/60 dark:text-zinc-400">
-        Hermes is responding…
-      </div>
+    <div style={{
+      alignSelf: "flex-start",
+      display: "flex",
+      gap: 6,
+      color: "var(--d-green)",
+      fontSize: 10,
+      letterSpacing: 1.6,
+      padding: "0 0 4px 0",
+    }}>
+      <span>HANK IS COMPOSING</span>
+      <span style={{ animation: "dispatchBlink 0.9s infinite" }}>▊</span>
     </div>
   );
 }

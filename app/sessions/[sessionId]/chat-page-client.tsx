@@ -276,12 +276,14 @@ export function ChatPageClient({
         onSend={onSend}
         onCreateSession={onCreateSession}
         creatingSession={creatingSession}
+        onSessionDeleted={refresh}
         currentArtifact={currentArtifact}
         onCloseArtifact={() => setCurrentArtifact(null)}
         onViewArtifact={(artifact) => setCurrentArtifact(artifact)}
         voiceEnabled={voice.enabled}
         onToggleVoice={voice.toggle}
         onSpeak={voice.speak}
+        voiceSpeaking={voice.speaking}
       />
     </AppFrame>
   );

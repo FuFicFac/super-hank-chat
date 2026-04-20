@@ -11,9 +11,10 @@ export function AppFrame({
   return (
     <div
       className={cn(
-        "h-dvh overflow-hidden flex flex-col bg-surface text-zinc-900 antialiased dark:text-zinc-50",
+        "h-dvh overflow-hidden flex flex-col antialiased",
         className,
       )}
+      style={{ background: "var(--d-bg)", color: "var(--d-ink)" }}
     >
       {children}
     </div>

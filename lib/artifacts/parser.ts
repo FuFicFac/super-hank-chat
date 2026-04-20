@@ -38,8 +38,18 @@ export function parseMessageForArtifact(raw: string): ParsedMessage {
   const content = match[2];
   const attrs = parseAttributes(attrString);
 
+  // Normalize type: "text/html" → "html", "image/svg+xml" → "svg", etc.
+  const rawType = (attrs.type ?? "").toLowerCase();
+  const normalizedType = rawType.includes("html")
+    ? "html"
+    : rawType.includes("svg")
+    ? "svg"
+    : rawType.includes("markdown") || rawType.includes("md")
+    ? "markdown"
+    : rawType || "code";
+
   const parsed = artifactSchema.safeParse({
-    type: attrs.type,
+    type: normalizedType,
     title: attrs.title,
     id: attrs.id,
     language: attrs.language,

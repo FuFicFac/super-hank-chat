@@ -1,18 +1,45 @@
-@import 'highlight.js/styles/github.css';
+@import 'highlight.js/styles/github-dark.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --surface: 220 14% 96%;
-  --surface-muted: 220 14% 92%;
-  --surface-elevated: 0 0% 100%;
-  --border: 220 13% 84%;
-  --ring: 142 72% 35%;
-}
+/* ─── Dispatch Theme Tokens ─────────────────────────────────────────────── */
 
-.dark {
+:root {
+  --d-bg:          #0b0b0c;
+  --d-bg2:         #0a0a0b;
+  --d-bg3:         #0f0f10;
+  --d-bg4:         #08080a;
+  --d-bg-row:      #0d0d0e;
+  --d-bg-row-hot:  #141415;
+  --d-ink:         #e9e4dc;
+  --d-ink2:        #f3ede1;
+  --d-ink3:        #c5bfb4;
+  --d-ink4:        #9a9489;
+  --d-mute:        #7a7168;
+  --d-mute2:       #6a6a6a;
+  --d-mute3:       #5a5a5a;
+  --d-mute4:       #444444;
+  --d-rule:        #1d1d1f;
+  --d-rule2:       #2a2a2c;
+  --d-rule3:       #111112;
+  --d-green:       #6FA23A;
+  --d-green-ink:   #6FA23A;
+  --d-blue:        #3A8FE0;
+  --d-blue-ink:    #3A8FE0;
+  --d-outline:     #6FA23A;
+  --d-outline-ink: #6FA23A;
+  --d-outline-bg:  transparent;
+  --d-structure:   #6FA23A;
+  --d-on-accent:   #0b0b0c;
+  --d-chip-bg:     #0c1420;
+  --d-idle-trace:  #2a2a2c;
+  --d-play-trace:  #5a9a6a;
+  --d-wave-glow:   rgba(111, 162, 58, 0.26);
+  --d-palette-shadow: rgba(0,0,0,0.6);
+  --d-disconnect:  #6a6a6a;
+
   --surface: 222 14% 12%;
   --surface-muted: 222 14% 16%;
   --surface-elevated: 222 14% 18%;
@@ -20,57 +47,125 @@
   --ring: 142 72% 45%;
 }
 
-html,
-body {
-  height: 100%;
+html.dark {
+  --d-bg:          #0b0b0c;
+  --d-bg2:         #0a0a0b;
+  --d-bg3:         #0f0f10;
+  --d-bg4:         #08080a;
+  --d-bg-row:      #0d0d0e;
+  --d-bg-row-hot:  #141415;
+  --d-ink:         #e9e4dc;
+  --d-ink2:        #f3ede1;
+  --d-ink3:        #c5bfb4;
+  --d-ink4:        #9a9489;
+  --d-mute:        #7a7168;
+  --d-mute2:       #6a6a6a;
+  --d-mute3:       #5a5a5a;
+  --d-mute4:       #444444;
+  --d-rule:        #1d1d1f;
+  --d-rule2:       #2a2a2c;
+  --d-rule3:       #111112;
+  --d-green:       #6FA23A;
+  --d-green-ink:   #6FA23A;
+  --d-blue:        #3A8FE0;
+  --d-blue-ink:    #3A8FE0;
+  --d-outline:     #6FA23A;
+  --d-outline-ink: #6FA23A;
+  --d-outline-bg:  transparent;
+  --d-structure:   #6FA23A;
+  --d-on-accent:   #0b0b0c;
+  --d-chip-bg:     #0c1420;
+  --d-idle-trace:  #2a2a2c;
+  --d-play-trace:  #5a9a6a;
+  --d-wave-glow:   rgba(111, 162, 58, 0.26);
+  --d-palette-shadow: rgba(0,0,0,0.6);
+  --d-disconnect:  #6a6a6a;
+
+  --surface: 222 14% 12%;
+  --surface-muted: 222 14% 16%;
+  --surface-elevated: 222 14% 18%;
+  --border: 222 12% 24%;
+  --ring: 142 72% 45%;
 }
+
+html:not(.dark) {
+  --d-bg:          #efeae0;
+  --d-bg2:         #e4dfd2;
+  --d-bg3:         #fbf8ef;
+  --d-bg4:         #e9e3d3;
+  --d-bg-row:      #e8e3d6;
+  --d-bg-row-hot:  #d8d2c1;
+  --d-ink:         #0a0806;
+  --d-ink2:        #000000;
+  --d-ink3:        #1a1712;
+  --d-ink4:        #2a251d;
+  --d-mute:        #3d3830;
+  --d-mute2:       #575045;
+  --d-mute3:       #4a443a;
+  --d-mute4:       #5d564a;
+  --d-rule:        #1a1510;
+  --d-rule2:       #3d3830;
+  --d-rule3:       #7a7260;
+  --d-green:       #3C6810;
+  --d-green-ink:   #2e5108;
+  --d-blue:        #1F5EA8;
+  --d-blue-ink:    #143F7A;
+  --d-outline:     #143F7A;
+  --d-outline-ink: #2e5108;
+  --d-outline-bg:  rgba(60,104,16,0.07);
+  --d-structure:   #0a0806;
+  --d-on-accent:   #f6f1e6;
+  --d-chip-bg:     #c8d7ea;
+  --d-idle-trace:  #8a8173;
+  --d-play-trace:  #2f5210;
+  --d-wave-glow:   rgba(60,104,16,0.55);
+  --d-palette-shadow: rgba(10,8,6,0.5);
+  --d-disconnect:  #4d4840;
+
+  --surface: 40 30% 92%;
+  --surface-muted: 40 20% 88%;
+  --surface-elevated: 0 0% 98%;
+  --border: 40 15% 75%;
+  --ring: 142 72% 25%;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+
+html, body { height: 100%; }
 
 body {
-  background-color: hsl(var(--surface));
+  background-color: var(--d-bg);
+  color: var(--d-ink);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, 'Menlo', monospace);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Dark mode code highlighting - GitHub Dark theme colors */
-.dark .hljs {
-  background: #0d1117;
-  color: #e6edf3;
+* { box-sizing: border-box; }
+
+/* ─── Dispatch Animations ────────────────────────────────────────────────── */
+
+@keyframes dispatchBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
 }
 
-.dark .hljs-keyword {
-  color: #ff7b72;
+@keyframes dispatchPulse {
+  0%   { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(1.7); opacity: 0; }
 }
 
-.dark .hljs-string {
-  color: #a5d6ff;
-}
+/* ─── Scrollbars ─────────────────────────────────────────────────────────── */
 
-.dark .hljs-comment {
-  color: #8b949e;
-}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--d-rule2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--d-mute3); }
 
-.dark .hljs-number {
-  color: #79c0ff;
-}
+/* ─── Code highlighting ──────────────────────────────────────────────────── */
 
-.dark .hljs-function {
-  color: #d2a8ff;
-}
-
-.dark .hljs-title {
-  color: #d2a8ff;
-}
-
-.dark .hljs-built_in {
-  color: #ffa657;
-}
-
-.dark .hljs-attr {
-  color: #79c0ff;
-}
-
-.dark .hljs-variable {
-  color: #ffa657;
-}
-
-.dark .hljs-type {
-  color: #ffa657;
+html:not(.dark) .hljs {
+  background: var(--d-bg4);
+  color: var(--d-ink4);
 }

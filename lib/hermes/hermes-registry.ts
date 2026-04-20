@@ -218,11 +218,19 @@ function handleStdoutDelta(sessionId: string, delta: string) {
 }
 
 function wireQueryAdapter(sessionId: string, adapter: HermesAdapter) {
+  let stderrSessionId: string | null = null;
+
   adapter.on("stdout", (plainDelta: string) => {
     handleStdoutDelta(sessionId, plainDelta);
   });
   adapter.on("stderr", (rawDelta: string) => {
     touchActivity(sessionId);
+    // Extract session_id from stderr (hermes outputs it there in -Q mode)
+    const rawLines = rawDelta.split(/\r?\n/);
+    for (const line of rawLines) {
+      const m = line.trim().match(HERMES_SESSION_ID_RE);
+      if (m) stderrSessionId = m[1] ?? null;
+    }
     const delta = sanitizeHermesDiagnosticDelta(rawDelta);
     if (delta) {
       const prev = sessionStderrTail.get(sessionId) ?? "";
@@ -238,6 +246,10 @@ function wireQueryAdapter(sessionId: string, adapter: HermesAdapter) {
   });
   adapter.on("exit", () => {
     activeQueryAdapters.delete(sessionId);
+    // Store session_id captured from stderr so --resume works on next message
+    if (stderrSessionId) {
+      writeSessionMetadata(sessionId, { hermesSessionId: stderrSessionId });
+    }
     // Finalize if still pending (process exited before session_id line was seen)
     if (activeMessageIds.has(sessionId)) {
       finalizeAssistantMessage(sessionId);

@@ -79,6 +79,13 @@ export function updateSession(
   return getSessionById(db, sessionId);
 }
 
+export function deleteSession(db: HankDatabase, sessionId: string): boolean {
+  const existing = getSessionById(db, sessionId);
+  if (!existing) return false;
+  db.delete(chatSessions).where(eq(chatSessions.id, sessionId)).run();
+  return true;
+}
+
 /** Mark every session that still claims "connected" as disconnected (server restart). */
 export function resetAllConnectedToDisconnected(db: HankDatabase) {
   db.update(chatSessions)
