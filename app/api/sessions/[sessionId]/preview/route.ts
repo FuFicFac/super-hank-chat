@@ -51,7 +51,6 @@ export async function GET(
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "X-Artifact-Title": artifactTitle,
     },
   });
 }

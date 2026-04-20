@@ -126,8 +126,8 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
         <button onClick={handleCopy} style={btnStyle()}>
           {copied ? "✓ COPIED" : "⧉ COPY"}
         </button>
-        <button onClick={handleOpenTab} title="Open in new tab" style={btnStyle()}>
-          ↗ TAB
+        <button onClick={handleOpenTab} title="Open in new browser window" style={btnStyle()}>
+          ↗ POP OUT
         </button>
         <button onClick={() => setFullscreen((f) => !f)} style={btnStyle()}>
           {fullscreen ? "⤡ EXIT" : "⤢ FULL"}

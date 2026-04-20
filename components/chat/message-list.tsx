@@ -39,22 +39,26 @@ export function MessageList({
       {!isAtBottom && (
         <button
           onClick={scrollToBottom}
+          aria-label="Scroll to bottom"
           style={{
             position: "absolute",
-            bottom: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--d-bg2)",
-            border: "1px solid var(--d-outline)",
-            color: "var(--d-outline-ink)",
-            fontSize: 9,
-            letterSpacing: 1.6,
-            padding: "5px 10px",
+            bottom: 16,
+            right: 16,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "var(--d-green)",
+            border: "none",
+            color: "var(--d-on-accent)",
+            fontSize: 18,
             cursor: "pointer",
+            display: "grid",
+            placeItems: "center",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+            lineHeight: 1,
           }}
-          aria-label="Scroll to bottom"
         >
-          ↓ LATEST
+          ↓
         </button>
       )}
     </div>

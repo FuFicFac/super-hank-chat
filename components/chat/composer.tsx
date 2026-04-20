@@ -176,6 +176,14 @@ export function Composer({
   const isActive = listening || (speaking ?? false);
   const oscPath = useOscPath(isActive, oscWidth);
 
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+  }, [value]);
+
   const submit = useCallback(async () => {
     const text = value.trim();
     if (!text || disabled) return;
@@ -429,6 +437,7 @@ export function Composer({
             border: "none",
             outline: "none",
             resize: "none",
+            overflowY: "auto",
             color: value.startsWith("/") ? "var(--d-blue)" : "var(--d-ink)",
             fontFamily: value.startsWith("/")
               ? "var(--font-mono, monospace)"
