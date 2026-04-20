@@ -38,3 +38,6 @@ next-env.d.ts
 # sqlite
 /data/*.db
 /data/*.db-journal
+/data/*.db-shm
+/data/*.db-wal
+hermes-chat.db

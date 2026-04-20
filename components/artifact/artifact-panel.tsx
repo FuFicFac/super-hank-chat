@@ -6,6 +6,7 @@ import { useState } from "react";
 
 type Props = {
   artifact: Artifact;
+  sessionId: string;
   onClose: () => void;
 };
 
@@ -25,7 +26,7 @@ const TYPE_LABELS: Record<string, string> = {
   markdown: "MD",
 };
 
-export function ArtifactPanel({ artifact, onClose }: Props) {
+export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<Tab>("rendered");
@@ -36,6 +37,11 @@ export function ArtifactPanel({ artifact, onClose }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
+  };
+
+  const handleOpenTab = () => {
+    // Open the live preview URL — refresh the tab to get the latest artifact
+    window.open(`/api/sessions/${sessionId}/preview`, "_blank");
   };
 
   const typeLabel = TYPE_LABELS[artifact.type] ?? artifact.type.toUpperCase();
@@ -119,6 +125,9 @@ export function ArtifactPanel({ artifact, onClose }: Props) {
         </div>
         <button onClick={handleCopy} style={btnStyle()}>
           {copied ? "✓ COPIED" : "⧉ COPY"}
+        </button>
+        <button onClick={handleOpenTab} title="Open in new tab" style={btnStyle()}>
+          ↗ TAB
         </button>
         <button onClick={() => setFullscreen((f) => !f)} style={btnStyle()}>
           {fullscreen ? "⤡ EXIT" : "⤢ FULL"}

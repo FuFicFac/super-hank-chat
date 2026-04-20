@@ -247,6 +247,7 @@ export function ChatShell(props: Props) {
             <div style={{ width: artifactWidth, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <ArtifactPanel
                 artifact={props.currentArtifact}
+                sessionId={props.sessionId}
                 onClose={props.onCloseArtifact}
               />
             </div>
