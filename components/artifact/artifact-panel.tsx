@@ -2,6 +2,7 @@
 
 import { ArtifactIframe } from "./artifact-iframe";
 import type { Artifact } from "@/lib/artifacts/schema";
+import JSZip from "jszip";
 import { useState } from "react";
 
 type Props = {
@@ -12,12 +13,6 @@ type Props = {
 
 type Tab = "rendered" | "source";
 type Viewport = "mobile" | "tablet" | "desktop";
-
-const VIEWPORT_WIDTHS: Record<Viewport, number | null> = {
-  mobile:  375,
-  tablet:  768,
-  desktop: null,
-};
 
 const TYPE_LABELS: Record<string, string> = {
   html: "HTML",
@@ -40,13 +35,81 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
   };
 
   const handleOpenTab = () => {
-    // Open the live preview URL — refresh the tab to get the latest artifact
     window.open(`/api/sessions/${sessionId}/preview`, "_blank");
+  };
+
+  const handleSave = () => {
+    const ext: Record<string, string> = { html: "html", svg: "svg", markdown: "md", code: "txt" };
+    const mime: Record<string, string> = { html: "text/html", svg: "image/svg+xml", markdown: "text/markdown", code: "text/plain" };
+    const slug = (artifact.title ?? artifact.type)
+      .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "artifact";
+    const filename = `${slug}.${ext[artifact.type] ?? "txt"}`;
+    const blob = new Blob([artifact.content], { type: mime[artifact.type] ?? "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const [zipping, setZipping] = useState(false);
+
+  const handleZipAll = async () => {
+    if (zipping) return;
+    setZipping(true);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/messages`);
+      if (!res.ok) throw new Error("Failed to load messages");
+      const data = (await res.json()) as { messages: Array<{ artifact?: Artifact | null }> };
+
+      const artifacts = data.messages
+        .map((m) => m.artifact)
+        .filter((a): a is Artifact => a != null);
+
+      if (artifacts.length === 0) {
+        alert("No artifacts found in this session.");
+        return;
+      }
+
+      const ext: Record<string, string> = { html: "html", svg: "svg", markdown: "md", code: "txt" };
+      const zip = new JSZip();
+      const used = new Set<string>();
+
+      artifacts.forEach((a, i) => {
+        const slug = (a.title ?? a.type)
+          .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "artifact";
+        const e = ext[a.type] ?? "txt";
+        let name = `${String(i + 1).padStart(2, "0")}-${slug}.${e}`;
+        if (used.has(name)) name = `${String(i + 1).padStart(2, "0")}-${slug}-${i + 1}.${e}`;
+        used.add(name);
+        zip.file(name, a.content);
+      });
+
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+      const date = new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `hank-artifacts-${date}.zip`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Export failed: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setZipping(false);
+    }
   };
 
   const typeLabel = TYPE_LABELS[artifact.type] ?? artifact.type.toUpperCase();
   const title = artifact.title ?? artifact.type;
-  const previewWidth = VIEWPORT_WIDTHS[viewport];
+  
+  const viewportStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    overflow: "auto",
+    display: "flex",
+    justifyContent: viewport === "desktop" ? "stretch" : "center",
+    alignItems: viewport === "desktop" ? "stretch" : "center",
+    padding: viewport === "desktop" ? 0 : "2rem",
+    background: viewport === "desktop" ? undefined : "var(--d-bg3)",
+  };
 
   const btnStyle = (active = false) => ({
     padding: "5px 9px",
@@ -126,6 +189,12 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
         <button onClick={handleCopy} style={btnStyle()}>
           {copied ? "✓ COPIED" : "⧉ COPY"}
         </button>
+        <button onClick={handleSave} title="Download this artifact as a file" style={btnStyle()}>
+          ↓ SAVE
+        </button>
+        <button onClick={() => void handleZipAll()} disabled={zipping} title="Download all session artifacts as a ZIP" style={btnStyle()}>
+          {zipping ? "…" : "↓ ZIP ALL"}
+        </button>
         <button onClick={handleOpenTab} title="Open in new browser window" style={btnStyle()}>
           ↗ POP OUT
         </button>
@@ -195,28 +264,116 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
       {/* Content */}
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
         {tab === "rendered" ? (
-          <div style={{
-            width: "100%",
-            height: "100%",
-            overflowX: previewWidth ? "auto" : "hidden",
-            overflowY: "hidden",
-            display: "flex",
-            justifyContent: previewWidth ? "center" : "stretch",
-            background: previewWidth ? "var(--d-bg3)" : undefined,
-          }}>
-            <div style={{
-              width: previewWidth ? previewWidth : "100%",
-              minWidth: previewWidth ? previewWidth : undefined,
-              height: "100%",
-              flexShrink: 0,
-              boxShadow: previewWidth ? "0 0 0 1px var(--d-rule2)" : undefined,
-            }}>
-              <ArtifactIframe
-                type={artifact.type}
-                content={artifact.content}
-                title={artifact.title}
-              />
-            </div>
+          <div style={viewportStyle}>
+            {viewport === "mobile" ? (
+              /* ── Phone frame ── */
+              <div style={{ flexShrink: 0, position: "relative", transform: "scale(0.7)", transformOrigin: "top center" }}>
+                {/* Body */}
+                <div style={{
+                  width: 375 + 24,
+                  borderRadius: 52,
+                  background: "#18181b",
+                  boxShadow: "0 0 0 1px #333, 0 0 0 3px #111, 0 24px 64px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
+                  padding: "52px 12px 32px",
+                  position: "relative",
+                }}>
+                  {/* Notch pill */}
+                  <div style={{
+                    position: "absolute",
+                    top: 16,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 110,
+                    height: 28,
+                    borderRadius: 14,
+                    background: "#09090b",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#1d1d1f" }} />
+                    <div style={{ width: 50, height: 6, borderRadius: 3, background: "#1d1d1f" }} />
+                  </div>
+                  {/* Side buttons */}
+                  <div style={{ position: "absolute", left: -3, top: 100, width: 3, height: 32, borderRadius: "2px 0 0 2px", background: "#27272a" }} />
+                  <div style={{ position: "absolute", left: -3, top: 148, width: 3, height: 56, borderRadius: "2px 0 0 2px", background: "#27272a" }} />
+                  <div style={{ position: "absolute", left: -3, top: 216, width: 3, height: 56, borderRadius: "2px 0 0 2px", background: "#27272a" }} />
+                  <div style={{ position: "absolute", right: -3, top: 148, width: 3, height: 80, borderRadius: "0 2px 2px 0", background: "#27272a" }} />
+                  {/* Screen */}
+                  <div style={{
+                    width: 375,
+                    height: 812,
+                    borderRadius: 40,
+                    overflow: "hidden",
+                    background: "#fff",
+                    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.15)",
+                  }}>
+                    <ArtifactIframe
+                      type={artifact.type}
+                      content={artifact.content}
+                      title={artifact.title}
+                    />
+                  </div>
+                  {/* Home bar */}
+                  <div style={{
+                    margin: "10px auto 0",
+                    width: 130,
+                    height: 5,
+                    borderRadius: 3,
+                    background: "rgba(255,255,255,0.2)",
+                  }} />
+                </div>
+              </div>
+            ) : viewport === "tablet" ? (
+              /* ── Tablet frame ── */
+              <div style={{ flexShrink: 0, transform: "scale(0.6)", transformOrigin: "top center" }}>
+                <div style={{
+                  width: 768 + 32,
+                  borderRadius: 28,
+                  background: "#18181b",
+                  boxShadow: "0 0 0 1px #333, 0 0 0 3px #111, 0 20px 48px rgba(0,0,0,0.5)",
+                  padding: "20px 16px",
+                  position: "relative",
+                }}>
+                  {/* Camera dot */}
+                  <div style={{
+                    position: "absolute",
+                    top: 9,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: "#27272a",
+                  }} />
+                  {/* Screen */}
+                  <div style={{
+                    width: 768,
+                    height: 1024,
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    background: "#fff",
+                    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+                  }}>
+                    <ArtifactIframe
+                      type={artifact.type}
+                      content={artifact.content}
+                      title={artifact.title}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── Desktop: full-height, no frame ── */
+              <div style={{ width: "100%", height: "100%" }}>
+                <ArtifactIframe
+                  type={artifact.type}
+                  content={artifact.content}
+                  title={artifact.title}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div style={{

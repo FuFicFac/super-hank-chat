@@ -161,7 +161,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
           fontStyle: "italic",
           fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
         }}>
-          "at your disposal, as ever"
+          &ldquo;at your disposal, as ever&rdquo;
         </div>
       </div>
 
