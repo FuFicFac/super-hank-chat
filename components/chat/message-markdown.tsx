@@ -12,6 +12,11 @@ export function MessageMarkdown({ content }: { content: string }) {
   const text = preprocessAssistantMarkdown(content);
 
   const components: Components = {
+    a: ({ href, children, ...props }) => (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+        {children}
+      </a>
+    ),
     pre: ({ children, ...props }) => {
       // Extract language from code element's className
       let language = "plaintext";
