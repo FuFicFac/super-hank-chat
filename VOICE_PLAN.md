@@ -143,7 +143,7 @@ This file will be integrated AFTER both agents complete.
 ## Environment
 - Working directory: `/Users/ekelloharrid/super-hank-chat`
 - Dev server: port 3099
-- Google API key: available as `GOOGLE_API_KEY` in `~/.hermes/.env` (value: `AIzaSyBw-tdLRjsAApNommcv-g8ibp3zKZFWXZc`)
+- Google API key: provide `GOOGLE_API_KEY` via local environment only; never commit key values or key fragments.
 - For the API route, read the key from `process.env.GOOGLE_API_KEY`
 - Next.js 15, React 19, TypeScript, Tailwind CSS
 - Icons: lucide-react (already installed)
