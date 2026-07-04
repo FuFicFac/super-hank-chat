@@ -3,6 +3,7 @@
 import { ArtifactIframe } from "./artifact-iframe";
 import type { Artifact } from "@/lib/artifacts/schema";
 import JSZip from "jszip";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 
 type Props = {
@@ -112,129 +113,72 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
   };
 
   const btnStyle = (active = false) => ({
-    padding: "5px 9px",
-    border: `1px solid ${active ? "var(--d-rule2)" : "var(--d-outline)"}`,
-    background: active ? "var(--d-rule2)" : "var(--d-outline-bg)",
-    color: active ? "var(--d-mute)" : "var(--d-outline-ink)",
-    fontFamily: "inherit",
-    fontSize: 9,
-    letterSpacing: 1.4,
-    cursor: "pointer",
-  });
+    "--artifact-border": active ? "var(--d-rule2)" : "var(--d-outline)",
+    "--artifact-bg": active ? "var(--d-rule2)" : "var(--d-outline-bg)",
+    "--artifact-color": active ? "var(--d-mute)" : "var(--d-outline-ink)",
+  }) as CSSProperties;
 
   const vpBtnStyle = (vp: Viewport) => ({
-    padding: "5px 8px",
-    border: `1px solid ${viewport === vp ? "var(--d-green)" : "var(--d-rule2)"}`,
-    background: viewport === vp ? "var(--d-green)" : "transparent",
-    color: viewport === vp ? "var(--d-on-accent)" : "var(--d-mute)",
-    fontFamily: "inherit",
-    fontSize: 9,
-    letterSpacing: 1.2,
-    cursor: "pointer",
-  });
+    "--vp-border": viewport === vp ? "var(--d-green)" : "var(--d-rule2)",
+    "--vp-bg": viewport === vp ? "var(--d-green)" : "transparent",
+    "--vp-color": viewport === vp ? "var(--d-on-accent)" : "var(--d-mute)",
+  }) as CSSProperties;
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      flex: 1,
-      background: "var(--d-bg2)",
-      minWidth: 0,
-      minHeight: 0,
-      overflow: "hidden",
-      position: fullscreen ? "fixed" : "relative",
-      inset: fullscreen ? 0 : undefined,
-      zIndex: fullscreen ? 50 : undefined,
-    }}>
+    <div
+      className="artifact-panel"
+      style={{
+        position: fullscreen ? "fixed" : "relative",
+        inset: fullscreen ? 0 : undefined,
+        zIndex: fullscreen ? 50 : undefined,
+      }}
+    >
       {/* Green label strip */}
-      <div style={{
-        background: "var(--d-green)",
-        color: "var(--d-on-accent)",
-        padding: "6px 16px",
-        fontSize: 10,
-        letterSpacing: 2,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        borderBottom: "2px solid var(--d-blue)",
-        flexShrink: 0,
-      }}>
-        <span>▞ WORKBENCH · {typeLabel} ARTIFACT</span>
-        <span>SANDBOXED</span>
+      <div className="artifact-strip">
+        <span>▞ Workbench · {typeLabel} artifact</span>
+        <span>Sandboxed</span>
       </div>
 
       {/* Title + controls */}
-      <div style={{
-        padding: "10px 16px",
-        borderBottom: "1px solid var(--d-rule)",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        flexShrink: 0,
-        flexWrap: "wrap",
-      }}>
-        <div style={{
-          fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
-          fontSize: 17,
-          color: "var(--d-ink2)",
-          letterSpacing: -0.2,
-          flex: 1,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          minWidth: 60,
-        }}>
+      <div className="artifact-toolbar">
+        <div className="artifact-title">
           {title}
         </div>
-        <button onClick={handleCopy} style={btnStyle()}>
-          {copied ? "✓ COPIED" : "⧉ COPY"}
+        <button type="button" onClick={handleCopy} title="Copy source" className="artifact-button classroom-button" style={btnStyle()}>
+          {copied ? "✓ Copied" : "⧉ Copy"}
         </button>
-        <button onClick={handleSave} title="Download this artifact as a file" style={btnStyle()}>
-          ↓ SAVE
+        <button type="button" onClick={handleSave} title="Download this artifact as a file" className="artifact-button classroom-button" style={btnStyle()}>
+          ↓ Save
         </button>
-        <button onClick={() => void handleZipAll()} disabled={zipping} title="Download all session artifacts as a ZIP" style={btnStyle()}>
-          {zipping ? "…" : "↓ ZIP ALL"}
+        <button type="button" onClick={() => void handleZipAll()} disabled={zipping} title="Download all session artifacts as a ZIP" className="artifact-button classroom-button" style={btnStyle()}>
+          {zipping ? "…" : "↓ Zip all"}
         </button>
-        <button onClick={handleOpenTab} title="Open in new browser window" style={btnStyle()}>
-          ↗ POP OUT
+        <button type="button" onClick={handleOpenTab} title="Open in new browser window" className="artifact-button classroom-button" style={btnStyle()}>
+          ↗ Pop out
         </button>
-        <button onClick={() => setFullscreen((f) => !f)} style={btnStyle()}>
-          {fullscreen ? "⤡ EXIT" : "⤢ FULL"}
+        <button type="button" onClick={() => setFullscreen((f) => !f)} title={fullscreen ? "Exit fullscreen" : "Fullscreen"} className="artifact-button classroom-button" style={btnStyle()}>
+          {fullscreen ? "⤡ Exit" : "⤢ Full"}
         </button>
-        <button onClick={onClose} style={{ ...btnStyle(), borderColor: "var(--d-rule2)", color: "var(--d-mute)" }}>
+        <button type="button" onClick={onClose} title="Close artifact panel" className="artifact-button classroom-button" style={{
+          ...btnStyle(),
+          "--artifact-border": "var(--d-rule2)",
+          "--artifact-color": "var(--d-mute)",
+        } as CSSProperties}>
           ✕
         </button>
       </div>
 
       {/* Tabs + viewport presets */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        borderBottom: "1px solid var(--d-rule)",
-        fontSize: 10,
-        letterSpacing: 1.6,
-        flexShrink: 0,
-      }}>
+      <div className="artifact-tabs">
         {(["rendered", "source"] as Tab[]).map((t) => (
           <button
+            type="button"
             key={t}
             onClick={() => setTab(t)}
-            style={{
-              padding: "8px 14px",
-              color: tab === t ? "var(--d-green)" : "var(--d-mute)",
-              borderBottom: tab === t ? "2px solid var(--d-structure)" : "2px solid transparent",
-              borderRight: "1px solid var(--d-rule)",
-              borderTop: "none",
-              borderLeft: "none",
-              background: "transparent",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              fontSize: 10,
-              letterSpacing: 1.6,
-              flexShrink: 0,
-            }}
+            className="artifact-tab"
+            data-active={tab === t}
           >
-            {t.toUpperCase()}
+            {t}
           </button>
         ))}
 
@@ -247,11 +191,11 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
             alignItems: "center",
             marginLeft: "auto",
           }}>
-            <span style={{ fontSize: 9, color: "var(--d-mute3)", letterSpacing: 1.2, marginRight: 2 }}>
-              VIEW
+            <span className="artifact-viewport-label">
+              View
             </span>
             {(["mobile", "tablet", "desktop"] as Viewport[]).map((vp) => (
-              <button key={vp} onClick={() => setViewport(vp)} style={vpBtnStyle(vp)}>
+              <button type="button" key={vp} onClick={() => setViewport(vp)} className="artifact-viewport-button classroom-button" style={vpBtnStyle(vp)}>
                 {vp === "mobile"  ? "📱 375" :
                  vp === "tablet"  ? "⬜ 768" :
                                     "🖥 FULL"}
@@ -376,18 +320,7 @@ export function ArtifactPanel({ artifact, sessionId, onClose }: Props) {
             )}
           </div>
         ) : (
-          <div style={{
-            height: "100%",
-            overflowY: "auto",
-            padding: 16,
-            background: "var(--d-bg4)",
-            fontFamily: "var(--font-mono, monospace)",
-            fontSize: 11,
-            color: "var(--d-ink4)",
-            lineHeight: 1.55,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-all",
-          }}>
+          <div className="artifact-source">
             {artifact.content}
           </div>
         )}

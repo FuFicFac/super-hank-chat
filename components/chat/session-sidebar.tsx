@@ -76,18 +76,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
 
   if (collapsed) {
     return (
-      <aside style={{
-        width: 36,
-        minWidth: 36,
-        borderRight: "1px solid var(--d-rule)",
-        background: "var(--d-bg)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        height: "100%",
-        minHeight: 0,
-        transition: "width 180ms ease",
-      }}>
+      <aside className="session-sidebar session-sidebar-collapsed">
         <button
           onClick={() => setCollapsed(false)}
           title="Expand sidebar"
@@ -109,33 +98,16 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
   }
 
   return (
-    <aside style={{
-      width: 272,
-      minWidth: 272,
-      borderRight: "1px solid var(--d-rule)",
-      background: "var(--d-bg)",
-      display: "flex",
-      flexDirection: "column",
-      height: "100%",
-      minHeight: 0,
-    }}>
+    <aside className="session-sidebar">
       {/* Wordmark */}
-      <div style={{
-        padding: "18px 16px 14px",
-        borderBottom: "1px solid var(--d-rule)",
-        flexShrink: 0,
-      }}>
+      <div className="sidebar-wordmark">
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <div style={{
-            fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
-            fontSize: 22, fontWeight: 500, letterSpacing: -0.4,
-            color: "var(--d-ink2)",
-          }}>
+          <div className="sidebar-brand">
             Hank<span style={{ color: "var(--d-green)" }}>.</span>
             <span style={{ color: "var(--d-blue)", marginLeft: 1 }}>_</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ fontSize: 10, color: "var(--d-blue)", letterSpacing: 1.2 }}>
+            <div className="sidebar-version" style={{ color: "var(--d-blue)" }}>
               v4.2 · 3099
             </div>
             <button
@@ -169,46 +141,26 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
       <button
         onClick={onCreate}
         disabled={creating}
+        className="sidebar-new-button classroom-button"
         style={{
-          margin: "12px 12px 8px",
-          padding: "9px 12px",
-          background: "var(--d-outline-bg)",
-          border: "1px solid var(--d-outline)",
-          color: "var(--d-outline-ink)",
-          fontFamily: "inherit",
-          fontSize: 11,
-          letterSpacing: 1.6,
           cursor: creating ? "not-allowed" : "pointer",
           opacity: creating ? 0.6 : 1,
-          textAlign: "left",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexShrink: 0,
         }}
       >
-        <span>{creating ? "CREATING…" : "+ NEW SESSION"}</span>
+        <span>{creating ? "Creating…" : "＋ New chat"}</span>
         <span style={{ opacity: 0.7 }}>⌘N</span>
       </button>
 
       {/* Filter tabs */}
-      <div style={{
-        padding: "8px 16px 6px",
-        display: "flex",
-        gap: 12,
-        fontSize: 10,
-        color: "var(--d-mute2)",
-        letterSpacing: 1.4,
-        flexShrink: 0,
-      }}>
+      <div className="sidebar-filter sidebar-tabs">
         <span style={{
           color: "var(--d-ink)",
           borderBottom: "1px solid var(--d-structure)",
           paddingBottom: 2,
         }}>
-          ALL · {sessions.length}
+          All · {sessions.length}
         </span>
-        <span>LIVE · {live.length}</span>
+        <span>Live · {live.length}</span>
         {emptyCount > 0 && (
           <button
             onClick={handleClearEmpty}
@@ -220,12 +172,12 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
               fontFamily: "inherit",
               fontSize: 10,
               letterSpacing: 1.4,
-              color: clearingEmpty ? "var(--d-mute3)" : "#e05a3a",
+              color: clearingEmpty ? "var(--d-mute3)" : "var(--c-danger, #e05a3a)",
               cursor: clearingEmpty ? "not-allowed" : "pointer",
               padding: 0,
             }}
           >
-            {clearingEmpty ? "CLEARING…" : `CLEAR ${emptyCount} EMPTY`}
+            {clearingEmpty ? "Clearing…" : `Clear ${emptyCount} empty`}
           </button>
         )}
       </div>
@@ -235,20 +187,20 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
         display: "grid",
         gridTemplateColumns: "64px 1fr 36px 20px",
         padding: "8px 16px 6px",
-        fontSize: 9,
+        fontSize: 10,
         color: "var(--d-mute3)",
         letterSpacing: 1.6,
         borderBottom: "1px solid var(--d-rule)",
         flexShrink: 0,
       }}>
-        <span>CODE</span>
-        <span>TITLE / AGE</span>
-        <span style={{ textAlign: "right" }}>MSG</span>
+        <span>Code</span>
+        <span>Title / age</span>
+        <span style={{ textAlign: "right" }}>Msg</span>
         <span />
       </div>
 
       {/* Session list */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className="session-list">
         {loading ? (
           <div style={{ padding: "16px", fontSize: 11, color: "var(--d-mute)" }}>
             Loading…
@@ -273,58 +225,32 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
               >
                 <Link
                   href={`/sessions/${s.id}`}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "64px 1fr 36px 20px",
-                    padding: "10px 16px",
-                    cursor: "pointer",
-                    background: isActive ? "var(--d-bg-row-hot)" : i % 2 === 1 ? "var(--d-bg-row)" : "transparent",
-                    borderLeft: isActive ? "2px solid var(--d-structure)" : "2px solid transparent",
-                    borderBottom: "1px solid var(--d-rule3)",
-                    textDecoration: "none",
-                    alignItems: "start",
-                    opacity: isDeleting ? 0.4 : 1,
-                    transition: "opacity 150ms",
-                  }}
+                  className="session-link"
+                  data-active={isActive}
+                  data-alt={i % 2 === 1}
+                  style={{ opacity: isDeleting ? 0.4 : 1 }}
                 >
-                  <div style={{
-                    fontSize: 10,
-                    color: isActive ? "var(--d-green)" : "var(--d-mute)",
-                    letterSpacing: 0.8,
-                    paddingTop: 1,
-                  }}>
+                  <div
+                    className="session-code"
+                    style={{
+                      color: isActive ? "var(--d-green)" : "var(--d-mute)",
+                      paddingTop: 1,
+                    }}
+                  >
                     {code}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{
-                      fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
-                      fontSize: 14,
-                      lineHeight: 1.25,
-                      color: isActive ? "var(--d-ink2)" : "var(--d-ink3)",
-                      fontWeight: 500,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: "2",
-                      WebkitBoxOrient: "vertical" as const,
-                    }}>
+                    <div className="session-title">
                       {s.title}
                     </div>
-                    <div style={{
-                      display: "flex",
-                      gap: 8,
-                      marginTop: 3,
-                      fontSize: 10,
-                      color: "var(--d-mute3)",
-                      letterSpacing: 0.6,
-                    }}>
+                    <div className="session-meta">
                       <span>{relativeTime(s.updatedAt)} ago</span>
                       {isLive && (
-                        <span style={{ color: "var(--d-green)", marginLeft: "auto" }}>● LIVE</span>
+                        <span style={{ color: "var(--d-green)", marginLeft: "auto" }}>● Live</span>
                       )}
                     </div>
                   </div>
-                  <div style={{
+                  <div className="session-count" style={{
                     textAlign: "right",
                     fontSize: 11,
                     color: "var(--d-mute)",
@@ -334,7 +260,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
                     {s.messageCount}
                   </div>
                   {/* Delete button — shown on hover */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div className="session-delete-cell" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {(isHovered || isDeleting) && (
                       <button
                         onClick={(e) => void handleDelete(e, s.id)}
@@ -343,7 +269,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
                         style={{
                           background: "none",
                           border: "none",
-                          color: "#e05a3a",
+                          color: "var(--c-danger, #e05a3a)",
                           fontSize: 12,
                           cursor: "pointer",
                           padding: "0 2px",
@@ -363,18 +289,9 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
       </div>
 
       {/* Footer */}
-      <div style={{
-        borderTop: "1px solid var(--d-rule)",
-        padding: "8px 16px",
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        fontSize: 9,
-        letterSpacing: 1.2,
-        color: "var(--d-mute2)",
-        flexShrink: 0,
-      }}>
-        <div style={{ color: "var(--d-blue)" }}>SESSIONS · {sessions.length}</div>
-        <div style={{ color: "var(--d-green)" }}>⌘K PALETTE</div>
+      <div className="sidebar-footer">
+        <div style={{ color: "var(--d-blue)" }}>Sessions · {sessions.length}</div>
+        <div style={{ color: "var(--d-green)" }}>⌘K Palette</div>
       </div>
     </aside>
   );

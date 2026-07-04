@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Newsreader, IBM_Plex_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Newsreader, IBM_Plex_Mono, Nunito } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { initDbSingleton } from "@/lib/db/client";
 import { APP_NAME } from "@/lib/constants";
 import "./globals.css";
 
@@ -9,6 +8,13 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
+});
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["700", "800"],
 });
 
 const jetbrains = JetBrains_Mono({
@@ -38,11 +44,24 @@ export const metadata: Metadata = {
   description: "Browser UI for the Hermes CLI agent",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+async function initDbForRuntime() {
+  if (process.env.npm_lifecycle_event === "build") return;
+  const { initDbSingleton } = await import("@/lib/db/client");
   await initDbSingleton();
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await initDbForRuntime();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrains.variable} ${newsreader.variable} ${ibmPlex.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("shc-ui-theme");if(t!=="dispatch"&&t!=="classroom")t="classroom";document.documentElement.setAttribute("data-ui",t)}catch(e){document.documentElement.setAttribute("data-ui","classroom")}})();`,
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${nunito.variable} ${jetbrains.variable} ${newsreader.variable} ${ibmPlex.variable}`}>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

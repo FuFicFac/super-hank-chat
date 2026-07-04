@@ -1,8 +1,10 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
+import { UiThemeToggle } from "@/components/layout/ui-theme-toggle";
 
 type Props = {
   title: string;
@@ -32,7 +34,7 @@ function useUptime(running: boolean): string {
 
 function useTtsBars(active: boolean, n = 5): number[] {
   const [t, setT] = useState(0);
-  const rafRef = { current: 0 };
+  const rafRef = useRef(0);
   useEffect(() => {
     if (!active) return;
     const loop = () => {
@@ -48,13 +50,18 @@ function useTtsBars(active: boolean, n = 5): number[] {
   });
 }
 
-const CONN_ORDER: ConnectionUiState[] = ["disconnected", "connecting", "connected", "error"];
-
 const connColor: Record<ConnectionUiState, string> = {
   disconnected: "var(--d-disconnect)",
   connecting:   "var(--d-blue)",
   connected:    "var(--d-green)",
-  error:        "#e05a3a",
+  error:        "var(--c-danger, #e05a3a)",
+};
+
+const connLabel: Record<ConnectionUiState, string> = {
+  disconnected: "Offline",
+  connecting: "Connecting",
+  connected: "Connected",
+  error: "Error",
 };
 
 export function ChatHeader({
@@ -88,107 +95,58 @@ export function ChatHeader({
   const dotColor = connColor[connection];
 
   return (
-    <header style={{
-      padding: "14px 24px",
-      borderBottom: "1px solid var(--d-rule)",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      background: "var(--d-bg)",
-      flexShrink: 0,
-    }}>
+    <header className="chat-header">
+      <div className="chat-header-mark" aria-hidden>H</div>
       {/* Session info */}
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{
-          fontSize: 10,
-          color: "var(--d-mute2)",
-          letterSpacing: 1.6,
-          display: "flex",
-          gap: 10,
-        }}>
+        <div className="chat-header-meta">
           <span style={{ color: "var(--d-green)" }}>{sessionCode}</span>
           <span>·</span>
-          <span>{messageCount} MSG</span>
+          <span>{messageCount} messages</span>
         </div>
-        <div style={{
-          fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
-          fontSize: 22,
-          fontWeight: 500,
-          letterSpacing: -0.3,
-          color: "var(--d-ink2)",
-          marginTop: 3,
-          lineHeight: 1.15,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {title}
+        <div className="chat-header-title">
+          <span className="classroom-only">Super Hank Chat</span>
+          <span className="dispatch-only">{title}</span>
         </div>
       </div>
 
       {/* Dark/Light toggle */}
       <button
+        type="button"
         onClick={() => setTheme(isLight ? "dark" : "light")}
         title={`switch to ${isLight ? "dark" : "light"} mode`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          border: "1px solid var(--d-rule2)",
-          background: "transparent",
-          padding: 0,
-          fontFamily: "inherit",
-          fontSize: 10,
-          letterSpacing: 1.4,
-          cursor: "pointer",
-          color: "var(--d-mute)",
-          flexShrink: 0,
-        }}
+        className="segmented-toggle classroom-button"
       >
-        <span style={{
-          padding: "6px 9px",
-          background: !isLight ? "var(--d-green)" : "transparent",
-          color: !isLight ? "var(--d-on-accent)" : "var(--d-mute)",
-        }}>DARK</span>
-        <span style={{
-          padding: "6px 9px",
-          background: isLight ? "var(--d-green)" : "transparent",
-          color: isLight ? "var(--d-on-accent)" : "var(--d-mute)",
-          borderLeft: "1px solid var(--d-rule2)",
-        }}>LIGHT</span>
+        <span data-active={!isLight}>Dark</span>
+        <span data-active={isLight}>Light</span>
       </button>
+
+      <UiThemeToggle />
 
       {/* Connection pill */}
       <button
+        type="button"
         onClick={cycleConnection}
         disabled={busy || connection === "connecting"}
         title={isLive ? "click to disconnect" : "click to connect"}
+        className="connection-action classroom-button"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 10px",
-          border: `1px solid ${isLive ? "var(--d-outline)" : dotColor}`,
-          background: isLive ? "var(--d-outline-bg)" : "transparent",
-          color: isLive ? "var(--d-outline-ink)" : dotColor,
-          fontSize: 10,
-          letterSpacing: 1.6,
+          "--conn-color": isLive ? "var(--d-outline-ink)" : dotColor,
+          "--conn-border": isLive ? "var(--d-outline)" : dotColor,
+          "--conn-bg": isLive ? "var(--d-outline-bg)" : "transparent",
           cursor: busy || connection === "connecting" ? "not-allowed" : "pointer",
-          fontFamily: "inherit",
-          fontVariantNumeric: "tabular-nums",
-          flexShrink: 0,
           opacity: busy ? 0.6 : 1,
-        }}
+        } as CSSProperties}
         aria-live="polite"
       >
-        <span style={{
-          width: 6, height: 6,
-          borderRadius: "50%",
-          background: dotColor,
-          boxShadow: isLive ? `0 0 6px ${dotColor}` : "none",
-          animation: connection === "connecting" ? "dispatchBlink 0.9s infinite" : "none",
-          flexShrink: 0,
-        }} />
-        <span>{connection.toUpperCase()}</span>
+        <span
+          className="connection-dot"
+          style={{
+            boxShadow: isLive ? `0 0 6px ${dotColor}` : "none",
+            animation: connection === "connecting" ? "dispatchBlink 0.9s infinite" : "none",
+          }}
+        />
+        <span>{connLabel[connection]}</span>
         {isLive && (
           <span style={{ color: "var(--d-mute)", marginLeft: 4 }}>{uptime}</span>
         )}
@@ -197,22 +155,15 @@ export function ChatHeader({
       {/* TTS toggle */}
       {onToggleVoice && (
         <button
+          type="button"
           onClick={onToggleVoice}
           title={voiceEnabled ? "TTS on — click to disable" : "TTS off — click to enable"}
+          className="voice-toggle classroom-button"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 10px",
-            border: `1px solid ${voiceEnabled ? "var(--d-outline)" : "var(--d-rule2)"}`,
-            background: voiceEnabled ? "var(--d-outline-bg)" : "transparent",
-            color: voiceEnabled ? "var(--d-outline-ink)" : "var(--d-mute)",
-            fontSize: 10,
-            letterSpacing: 1.6,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            flexShrink: 0,
-          }}
+            "--voice-border": voiceEnabled ? "var(--d-outline)" : "var(--d-rule2)",
+            "--voice-bg": voiceEnabled ? "var(--d-outline-bg)" : "transparent",
+            "--voice-color": voiceEnabled ? "var(--d-outline-ink)" : "var(--d-mute)",
+          } as CSSProperties}
           aria-pressed={voiceEnabled}
         >
           <span style={{ display: "inline-flex", gap: 2, alignItems: "end", height: 12 }}>
@@ -226,28 +177,13 @@ export function ChatHeader({
               }} />
             ))}
           </span>
-          <span>{voiceEnabled ? "TTS · ON" : "TTS · OFF"}</span>
+          <span>{voiceEnabled ? "TTS · On" : "TTS · Off"}</span>
         </button>
       )}
 
       {/* Diagnostics */}
       {diagnostics && (
-        <div style={{
-          position: "absolute",
-          top: "100%",
-          left: 0,
-          right: 0,
-          background: "rgba(224, 90, 58, 0.12)",
-          borderBottom: "1px solid rgba(224, 90, 58, 0.4)",
-          padding: "6px 24px",
-          fontSize: 10,
-          color: "#e05a3a",
-          fontFamily: "var(--font-mono, monospace)",
-          letterSpacing: 0.5,
-          maxHeight: 80,
-          overflowY: "auto",
-          zIndex: 5,
-        }}>
+        <div className="diagnostics-banner">
           {diagnostics}
         </div>
       )}

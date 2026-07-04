@@ -1,7 +1,7 @@
 "use client";
 
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 
 type Props = {
   disabled?: boolean;
@@ -253,54 +253,22 @@ export function Composer({
   return (
     <div
       ref={containerRef}
-      style={{
-        borderTop: "1px solid var(--d-rule)",
-        background: "var(--d-bg)",
-        padding: "12px 24px 14px",
-        flexShrink: 0,
-        position: "relative",
-      }}
+      className="composer-shell"
     >
       {/* ── Slash command picker ─────────────────────────────────────────── */}
       {filteredCmds.length > 0 && (
-        <div style={{
-          position: "absolute",
-          bottom: "100%",
-          left: 24,
-          right: 24,
-          maxHeight: 320,
-          overflowY: "auto",
-          background: "var(--d-bg)",
-          border: "1px solid var(--d-outline)",
-          zIndex: 20,
-          boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
-        }}>
+        <div className="slash-menu">
           {/* Header */}
-          <div style={{
-            background: "var(--d-green)",
-            color: "var(--d-on-accent)",
-            padding: "5px 12px",
-            fontSize: 9,
-            letterSpacing: 2,
-            display: "flex",
-            justifyContent: "space-between",
-          }}>
-            <span>/ COMMANDS · {filteredCmds.length}</span>
-            <span style={{ opacity: 0.8 }}>↑↓ NAVIGATE · TAB COMPLETE · ESC CANCEL</span>
+          <div className="slash-menu-header">
+            <span>/ Commands · {filteredCmds.length}</span>
+            <span style={{ opacity: 0.8 }}>↑↓ Navigate · Tab complete · Esc cancel</span>
           </div>
 
           {grouped.map(({ category, cmds }) => (
             <div key={category}>
               {/* Category header */}
-              <div style={{
-                padding: "5px 12px 3px",
-                fontSize: 9,
-                letterSpacing: 1.8,
-                color: "var(--d-blue)",
-                borderBottom: "1px solid var(--d-rule3)",
-                background: "var(--d-bg2)",
-              }}>
-                {category.toUpperCase()}
+              <div className="slash-category">
+                {category}
               </div>
 
               {cmds.map((cmd) => {
@@ -311,22 +279,8 @@ export function Composer({
                     key={cmd.cmd}
                     onMouseDown={(e) => { e.preventDefault(); selectSlashCmd(cmd); }}
                     onMouseEnter={() => setSlashIndex(flatIdx)}
-                    style={{
-                      width: "100%",
-                      display: "grid",
-                      gridTemplateColumns: "120px 1fr",
-                      gap: 8,
-                      padding: "7px 12px",
-                      background: isHighlighted ? "var(--d-bg-row-hot)" : "transparent",
-                      borderLeft: isHighlighted ? "2px solid var(--d-green)" : "2px solid transparent",
-                      borderBottom: "1px solid var(--d-rule3)",
-                      borderTop: "none",
-                      borderRight: "none",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      fontFamily: "inherit",
-                      alignItems: "baseline",
-                    }}
+                    className="slash-command"
+                    data-highlighted={isHighlighted}
                   >
                     <div style={{ display: "flex", alignItems: "baseline", gap: 4, minWidth: 0 }}>
                       <span style={{
@@ -365,7 +319,7 @@ export function Composer({
       )}
 
       {/* ── Oscilloscope ─────────────────────────────────────────────────── */}
-      <div style={{ height: 34, marginBottom: 8, position: "relative" }}>
+      <div className="oscilloscope">
         <svg
           width="100%"
           height={34}
@@ -408,64 +362,46 @@ export function Composer({
       </div>
 
       {/* ── Input row ────────────────────────────────────────────────────── */}
-      <div style={{
-        display: "flex",
-        alignItems: "flex-end",
-        gap: 10,
-        border: "1px solid var(--d-rule2)",
-        padding: "10px 12px",
-        background: "var(--d-bg3)",
-      }}>
-        <span style={{
-          color: value.startsWith("/") ? "var(--d-blue)" : "var(--d-green)",
-          fontSize: 13,
-          paddingBottom: 2,
-          flexShrink: 0,
-          transition: "color 100ms",
-        }}>❯</span>
+      <div className="composer-input-row">
+        <span
+          className="composer-prompt"
+          style={{
+            "--composer-accent": value.startsWith("/") ? "var(--d-blue)" : "var(--d-green)",
+          } as CSSProperties}
+        >
+          ❯
+        </span>
         <textarea
           ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={listening ? "listening…" : disabled ? "connect to Hank to send" : "say something to Hank · type / for commands"}
+          placeholder={listening ? "Listening…" : disabled ? "Connect to Hank to send" : "Ask Hank anything…"}
           rows={1}
           disabled={disabled}
+          className="composer-textarea"
           style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            resize: "none",
-            overflowY: "auto",
-            color: value.startsWith("/") ? "var(--d-blue)" : "var(--d-ink)",
-            fontFamily: value.startsWith("/")
+            "--composer-accent-text": value.startsWith("/") ? "var(--d-blue)" : "var(--d-ink)",
+            "--composer-font": value.startsWith("/")
               ? "var(--font-mono, monospace)"
               : "var(--font-serif, Newsreader, Georgia, serif)",
-            fontSize: 15,
-            lineHeight: 1.4,
-            opacity: disabled ? 0.5 : 1,
-            transition: "color 100ms, font-family 100ms",
-          }}
+            "--composer-opacity": disabled ? 0.5 : 1,
+          } as CSSProperties}
           aria-label="Message input"
         />
         {voiceEnabled && (
           <button
+            type="button"
             onClick={toggleMic}
             disabled={!supported || disabled}
             title={listening ? "Stop listening" : supported ? "Speak to type" : "Speech not supported"}
+            className="mic-button classroom-button"
             style={{
-              width: 30, height: 30,
-              border: `1px solid ${listening ? "var(--d-green)" : "var(--d-rule2)"}`,
-              background: listening ? "var(--d-green)" : "transparent",
-              color: listening ? "var(--d-on-accent)" : "var(--d-mute)",
+              "--mic-border": listening ? "var(--d-green)" : "var(--d-rule2)",
+              "--mic-bg": listening ? "var(--d-green)" : "transparent",
+              "--mic-color": listening ? "var(--d-on-accent)" : "var(--d-mute)",
               cursor: supported && !disabled ? "pointer" : "not-allowed",
-              fontSize: 12,
-              display: "grid",
-              placeItems: "center",
-              position: "relative",
-              flexShrink: 0,
-            }}
+            } as CSSProperties}
             aria-pressed={listening}
             aria-label={listening ? "Stop voice input" : "Start voice input"}
           >
@@ -482,36 +418,23 @@ export function Composer({
           </button>
         )}
         <button
+          type="button"
           onClick={() => void submit()}
           disabled={disabled || !value.trim()}
+          className="send-button classroom-button"
           style={{
-            padding: "6px 12px",
-            border: "1px solid var(--d-green)",
-            background: "var(--d-green)",
-            color: "var(--d-on-accent)",
             cursor: disabled || !value.trim() ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            fontSize: 10,
-            letterSpacing: 1.6,
             opacity: disabled || !value.trim() ? 0.5 : 1,
-            flexShrink: 0,
           }}
           aria-label="Send message"
         >
-          SEND ↵
+          Send ↵
         </button>
       </div>
 
       {/* ── Hint row ─────────────────────────────────────────────────────── */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginTop: 6,
-        fontSize: 9,
-        color: "var(--d-mute3)",
-        letterSpacing: 1.2,
-      }}>
-        <span>↵ SEND · ⇧↵ NEW LINE · / COMMANDS · ⌘K PALETTE{voiceEnabled ? " · ⌘/ MIC" : ""}</span>
+      <div className="composer-hints">
+        <span>↵ Send · ⇧↵ New line · / Commands · ⌘K Palette{voiceEnabled ? " · ⌘/ Mic" : ""}</span>
         <span style={{ color: "var(--d-blue)" }}>HERMES · 128k ctx</span>
       </div>
     </div>

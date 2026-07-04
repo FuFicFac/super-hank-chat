@@ -122,16 +122,17 @@ export function ChatShell(props: Props) {
   };
 
   return (
-    <div style={{
-      display: "flex",
-      flex: 1,
-      minHeight: 0,
-      flexDirection: "row",
-      background: "var(--d-bg)",
-      color: "var(--d-ink)",
-      position: "relative",
-      overflow: "hidden",
-    }}>
+    <div
+      className="chat-shell"
+      style={{
+        display: "flex",
+        flex: 1,
+        minHeight: 0,
+        flexDirection: "row",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Left rail */}
       <SessionSidebar
         sessions={props.sessions}

@@ -19,15 +19,10 @@ export function MessageList({
   const { ref, scrollToBottom, isAtBottom } = useAutoScroll<HTMLDivElement>([messages]);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+    <div className="message-list-shell">
       {/* Scroll container — ref goes here so useAutoScroll targets the right element */}
-      <div style={{ position: "absolute", inset: 0, overflowY: "auto" }} ref={ref}>
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 22,
-          padding: "28px 24px 24px",
-        }}>
+      <div className="message-scroll" ref={ref}>
+        <div className="message-stack">
           {messages.map((m) => (
             <MessageBubble
               key={m.id}
@@ -45,24 +40,7 @@ export function MessageList({
         <button
           onClick={scrollToBottom}
           aria-label="Scroll to bottom"
-          style={{
-            position: "absolute",
-            bottom: 20,
-            right: 20,
-            width: 44,
-            height: 44,
-            borderRadius: "50%",
-            background: "var(--d-green)",
-            border: "2px solid var(--d-on-accent)",
-            color: "var(--d-on-accent)",
-            fontSize: 22,
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-            lineHeight: 1,
-            zIndex: 10,
-          }}
+          className="scroll-bottom-button classroom-button"
         >
           ↓
         </button>
