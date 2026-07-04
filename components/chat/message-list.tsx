@@ -23,15 +23,20 @@ export function MessageList({
       {/* Scroll container — ref goes here so useAutoScroll targets the right element */}
       <div className="message-scroll" ref={ref}>
         <div className="message-stack">
-          {messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              onViewArtifact={onViewArtifact}
-              onSpeak={onSpeak}
-              speaking={speaking}
-            />
-          ))}
+          {messages.map((m, index) => {
+            const previous = messages[index - 1];
+            const showAvatar = m.role === "assistant" && previous?.role !== "assistant";
+            return (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onViewArtifact={onViewArtifact}
+                onSpeak={onSpeak}
+                speaking={speaking}
+                showAvatar={showAvatar}
+              />
+            );
+          })}
         </div>
       </div>
 

@@ -5,7 +5,12 @@ export function TypingStream({ visible }: { visible: boolean }) {
   return (
     <div className="typing-stream">
       <span>Hank is composing</span>
-      <span style={{ animation: "dispatchBlink 0.9s infinite" }}>▊</span>
+      <span className="typing-dispatch-caret">▊</span>
+      <span className="typing-classroom-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
     </div>
   );
 }

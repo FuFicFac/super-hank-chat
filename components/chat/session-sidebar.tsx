@@ -12,6 +12,7 @@ type Props = {
   onCreate: () => void;
   creating?: boolean;
   onDeleted?: () => void;
+  onSelect?: () => void;
 };
 
 /** Derive a stable HNK-XXXX code from a session ID (UUID). */
@@ -32,7 +33,7 @@ function relativeTime(updatedAt: number): string {
   return `${Math.floor(delta / 604800)}w`;
 }
 
-export function SessionSidebar({ sessions, activeId, loading, onCreate, creating, onDeleted }: Props) {
+export function SessionSidebar({ sessions, activeId, loading, onCreate, creating, onDeleted, onSelect }: Props) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -229,6 +230,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
                   data-active={isActive}
                   data-alt={i % 2 === 1}
                   style={{ opacity: isDeleting ? 0.4 : 1 }}
+                  onClick={onSelect}
                 >
                   <div
                     className="session-code"

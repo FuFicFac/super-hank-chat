@@ -1,6 +1,7 @@
 "use client";
 
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useUiTheme } from "@/hooks/use-ui-theme";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 
 type Props = {
@@ -135,6 +136,7 @@ export function Composer({
   voiceEnabled,
   speaking,
 }: Props) {
+  const { uiTheme } = useUiTheme();
   const [value, setValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -249,6 +251,13 @@ export function Composer({
   const flatFiltered = CATEGORY_ORDER.flatMap((cat) =>
     filteredCmds.filter((c) => c.category === cat)
   );
+  const placeholder = listening
+    ? "Listening…"
+    : disabled
+      ? "Connect to Hank to send"
+      : uiTheme === "dispatch"
+        ? "MESSAGE HERMES // type / for commands"
+        : "Ask Hank anything… type / for commands";
 
   return (
     <div
@@ -376,7 +385,7 @@ export function Composer({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={listening ? "Listening…" : disabled ? "Connect to Hank to send" : "Ask Hank anything…"}
+          placeholder={placeholder}
           rows={1}
           disabled={disabled}
           className="composer-textarea"

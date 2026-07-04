@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
 import { UiThemeToggle } from "@/components/layout/ui-theme-toggle";
+import { HankAvatar } from "./hank-avatar";
 
 type Props = {
   title: string;
@@ -18,6 +19,8 @@ type Props = {
   voiceEnabled?: boolean;
   onToggleVoice?: () => void;
   speaking?: boolean;
+  thinking?: boolean;
+  onToggleSidebar?: () => void;
 };
 
 function useUptime(running: boolean): string {
@@ -76,9 +79,13 @@ export function ChatHeader({
   voiceEnabled,
   onToggleVoice,
   speaking,
+  thinking,
+  onToggleSidebar,
 }: Props) {
   const { theme, setTheme } = useTheme();
-  const isLight = theme === "light";
+  const [themeMounted, setThemeMounted] = useState(false);
+  useEffect(() => setThemeMounted(true), []);
+  const isLight = themeMounted && theme === "light";
   const isLive = connection === "connected";
   const uptime = useUptime(isLive);
   const bars = useTtsBars(speaking ?? false, 5);
@@ -96,7 +103,16 @@ export function ChatHeader({
 
   return (
     <header className="chat-header">
-      <div className="chat-header-mark" aria-hidden>H</div>
+      <button
+        type="button"
+        className="mobile-menu-button classroom-button"
+        onClick={onToggleSidebar}
+        aria-label="Open sessions"
+      >
+        ☰
+      </button>
+      <div className="chat-header-mark dispatch-only">H</div>
+      <HankAvatar size="md" state={speaking ? "speaking" : thinking ? "thinking" : "idle"} />
       {/* Session info */}
       <div style={{ minWidth: 0, flex: 1 }}>
         <div className="chat-header-meta">

@@ -63,6 +63,7 @@ const MIN_CHAT_WIDTH = 340;
 export function ChatShell(props: Props) {
   const hasArtifact = props.currentArtifact != null;
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [artifactWidth, setArtifactWidth] = useState(DEFAULT_ARTIFACT_WIDTH);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -124,48 +125,38 @@ export function ChatShell(props: Props) {
   return (
     <div
       className="chat-shell"
-      style={{
-        display: "flex",
-        flex: 1,
-        minHeight: 0,
-        flexDirection: "row",
-        position: "relative",
-        overflow: "hidden",
-      }}
     >
       {/* Left rail */}
-      <SessionSidebar
-        sessions={props.sessions}
-        activeId={props.sessionId}
-        loading={props.sessionsLoading}
-        onCreate={props.onCreateSession}
-        creating={props.creatingSession}
-        onDeleted={props.onSessionDeleted}
-      />
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="mobile-sidebar-scrim"
+          aria-label="Close sessions"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <div className="sidebar-drawer" data-open={sidebarOpen}>
+        <SessionSidebar
+          sessions={props.sessions}
+          activeId={props.sessionId}
+          loading={props.sessionsLoading}
+          onCreate={props.onCreateSession}
+          creating={props.creatingSession}
+          onDeleted={props.onSessionDeleted}
+          onSelect={() => setSidebarOpen(false)}
+        />
+      </div>
 
       {/* Center + Artifact */}
       <div
+        className="chat-workspace"
         ref={containerRef}
         onPointerMove={onDragMove}
         onPointerUp={onDragEnd}
         onPointerLeave={onDragEnd}
-        style={{
-          display: "flex",
-          flexDirection: "row",
-          flex: 1,
-          minWidth: 0,
-          minHeight: 0,
-        }}
       >
         {/* Chat column */}
-        <section style={{
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          minWidth: MIN_CHAT_WIDTH,
-          minHeight: 0,
-          position: "relative",
-        }}>
+        <section className="chat-column">
           <ChatHeader
             title={props.title}
             sessionCode={code}
@@ -178,6 +169,8 @@ export function ChatShell(props: Props) {
             voiceEnabled={props.voiceEnabled}
             onToggleVoice={props.onToggleVoice}
             speaking={props.voiceSpeaking}
+            thinking={props.typing}
+            onToggleSidebar={() => setSidebarOpen(true)}
           />
 
           {props.messages.length === 0 ? (
@@ -210,6 +203,7 @@ export function ChatShell(props: Props) {
           <>
             {/* Drag handle */}
             <div
+              className="artifact-resize-handle"
               onPointerDown={onDragStart}
               style={{
                 width: 6,
@@ -245,7 +239,10 @@ export function ChatShell(props: Props) {
               </div>
             </div>
 
-            <div style={{ width: artifactWidth, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div
+              className="artifact-panel-shell"
+              style={{ width: artifactWidth }}
+            >
               <ArtifactPanel
                 artifact={props.currentArtifact}
                 sessionId={props.sessionId}

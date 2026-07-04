@@ -2,6 +2,8 @@
 
 import type { Artifact } from "@/lib/artifacts/schema";
 import type { UiMessage } from "@/types/chat";
+import { useUiTheme } from "@/hooks/use-ui-theme";
+import { HankAvatar } from "./hank-avatar";
 import { MessageMarkdown } from "./message-markdown";
 
 export function MessageBubble({
@@ -9,20 +11,23 @@ export function MessageBubble({
   onViewArtifact,
   onSpeak,
   speaking,
+  showAvatar,
 }: {
   message: UiMessage;
   onViewArtifact?: (artifact: Artifact) => void;
   onSpeak?: (text: string) => void;
   speaking?: boolean;
+  showAvatar?: boolean;
 }) {
+  const { uiTheme } = useUiTheme();
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const isMeta = message.role === "system" || message.role === "status";
 
   const ts = new Date(message.createdAt * 1000).toLocaleTimeString([], {
-    hour: "numeric",
+    hour: uiTheme === "dispatch" ? "2-digit" : "numeric",
     minute: "2-digit",
-    hour12: true,
+    hour12: uiTheme !== "dispatch",
   });
 
   if (isMeta) {
@@ -49,23 +54,32 @@ export function MessageBubble({
   if (isAssistant) {
     return (
       <div className="message-bubble-wrap" data-role="assistant">
-        <div className="message-meta">
-          <span>Hank · {ts}</span>
-          {speaking && message.streaming && <TtsBars />}
-          {!message.streaming && onSpeak && message.content.trim() && (
-            <button
-              type="button"
-              onClick={() => onSpeak(message.content)}
-              title="Speak this message"
-              className="speak-button classroom-button"
-            >
-              Speak
-            </button>
-          )}
-        </div>
-        <div className="message-card message-card-assistant">
-          <MessageMarkdown content={message.content || (message.streaming ? "…" : "")} />
-          {message.streaming && <span className="message-caret message-caret-assistant" />}
+        <div className="assistant-message-row">
+          <div className="assistant-avatar-slot">
+            {showAvatar && (
+              <HankAvatar size="sm" state={message.streaming ? "thinking" : "idle"} />
+            )}
+          </div>
+          <div className="assistant-message-body">
+            <div className="message-meta">
+              <span>Hank · {ts}</span>
+              {speaking && message.streaming && <TtsBars />}
+              {!message.streaming && onSpeak && message.content.trim() && (
+                <button
+                  type="button"
+                  onClick={() => onSpeak(message.content)}
+                  title="Speak this message"
+                  className="speak-button classroom-button"
+                >
+                  Speak
+                </button>
+              )}
+            </div>
+            <div className="message-card message-card-assistant">
+              <MessageMarkdown content={message.content || (message.streaming ? "…" : "")} />
+              {message.streaming && <span className="message-caret message-caret-assistant" />}
+            </div>
+          </div>
         </div>
         {message.artifact && onViewArtifact && (
           <button
