@@ -18,7 +18,7 @@ import {
 import { HermesAdapter } from "./hermes-adapter";
 import { sseEvent } from "./hermes-events";
 
-const IDLE_MS = 90_000;
+const IDLE_MS = 300_000; // 5 minutes — allows Hank to complete tool-heavy responses without abort
 
 type SessionMetadata = {
   hermesSessionId?: string;

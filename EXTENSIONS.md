@@ -1,4 +1,4 @@
-# Extension seams (TTS / STT / metadata)
+# Extension seams (TTS / STT / image generation / metadata)
 
 ## Persistence note
 
@@ -21,3 +21,32 @@ Hank Chat v1 ships **contracts only** for audio. Implementation lives behind the
 3. Keep all audio I/O on the client or behind dedicated API routes; do not mix into `lib/hermes/`.
 
 Hermes integration remains isolated in `lib/hermes/` and must stay on the Node.js runtime.
+
+## Image generation
+
+OpenAI image generation is available through a dedicated server route:
+
+- `app/api/images/generate/route.ts`
+- `lib/images/openai-image.ts`
+
+Configuration lives in `.env.local`:
+
+```bash
+OPENAI_API_KEY=your_key_here
+# Optional:
+OPENAI_IMAGE_MODEL=gpt-image-1
+OPENAI_IMAGE_SIZE=1024x1024
+```
+
+The route accepts:
+
+```json
+{
+  "prompt": "image prompt",
+  "size": "1024x1024",
+  "quality": "auto"
+}
+```
+
+It returns a PNG data URL. If `OPENAI_API_KEY` is missing, the route returns
+`501` and does not attempt a remote call.
