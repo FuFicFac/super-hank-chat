@@ -56,6 +56,9 @@ export function ChatPageClient({
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null);
   const streamingAssistantRawRef = useRef<Map<string, string>>(new Map());
   const voice = useVoiceMode();
+  // Latest voice state for use inside the SSE callback (avoids stale closure).
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
 
   const loadMessages = useCallback(async () => {
     const res = await fetch(`/api/sessions/${sessionId}/messages`);
@@ -164,6 +167,10 @@ export function ChatPageClient({
       const { answer, thinking } = toAssistantView(content);
       const { prose, artifact } = parseMessageForArtifact(answer);
       if (artifact) setCurrentArtifact(artifact);
+      // Auto-read the reply aloud when voice mode is on.
+      if (voiceRef.current.enabled && prose.trim()) {
+        void voiceRef.current.speak(prose);
+      }
       setTyping(false);
       setMessages((prev) =>
         prev.map((m) =>
