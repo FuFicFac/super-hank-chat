@@ -21,4 +21,6 @@ export type ApiMessage = {
   status: string;
   createdAt: number;
   artifact?: Artifact | null;
+  /** Hank's reasoning/thinking, shown in a collapsible dropdown. */
+  thinking?: string | null;
 };

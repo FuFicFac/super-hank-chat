@@ -9,7 +9,9 @@ import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { parseMessageForArtifact } from "@/lib/artifacts/parser";
 import type { Artifact } from "@/lib/artifacts/schema";
 import {
+  denoiseAssistantStream,
   sanitizeHermesDiagnosticDelta,
+  toAssistantView,
   toVisibleHermesAssistantContent,
 } from "@/lib/hermes/query-output";
 import type { ApiMessage, ApiSessionSummary } from "@/types/api";
@@ -26,6 +28,7 @@ function toUiMessage(m: ApiMessage): UiMessage {
     createdAt: m.createdAt,
     streaming: m.status === "streaming",
     artifact: m.artifact ?? null,
+    thinking: m.thinking ?? null,
   };
 }
 
@@ -129,7 +132,10 @@ export function ChatPageClient({
       const prevRaw = streamingAssistantRawRef.current.get(messageId) ?? "";
       const raw = prevRaw + delta;
       streamingAssistantRawRef.current.set(messageId, raw);
-      const visible = toVisibleHermesAssistantContent(raw);
+      // During streaming show denoised text live (warning + reasoning borders
+      // stripped) so Hank's thinking is visible as it arrives; the clean
+      // answer/thinking split happens on message.completed.
+      const visible = denoiseAssistantStream(toVisibleHermesAssistantContent(raw));
       const { prose, artifact } = parseMessageForArtifact(visible);
       if (artifact) setCurrentArtifact(artifact);
       setMessages((prev) =>
@@ -150,8 +156,8 @@ export function ChatPageClient({
       const messageId = typeof payload.messageId === "string" ? payload.messageId : "";
       const content = typeof payload.content === "string" ? payload.content : "";
       streamingAssistantRawRef.current.delete(messageId);
-      const visible = toVisibleHermesAssistantContent(content);
-      const { prose, artifact } = parseMessageForArtifact(visible);
+      const { answer, thinking } = toAssistantView(content);
+      const { prose, artifact } = parseMessageForArtifact(answer);
       if (artifact) setCurrentArtifact(artifact);
       setTyping(false);
       setMessages((prev) =>
@@ -161,6 +167,7 @@ export function ChatPageClient({
                 ...m,
                 content: prose || m.content,
                 artifact: artifact ?? m.artifact ?? null,
+                thinking: thinking ?? m.thinking ?? null,
                 status: "complete",
                 streaming: false,
               }

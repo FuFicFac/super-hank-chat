@@ -63,6 +63,104 @@ export function toVisibleHermesAssistantContent(text: string): string {
   return classifyStdoutContent(normalizeHermesAssistantContent(text)).content;
 }
 
+// ─── Reasoning / thinking segmentation ──────────────────────────────────────
+// Hermes (with display.show_reasoning: true, reasoning_style: code) prepends a
+// "┌─ Reasoning ─┐" box and a "Warning: Unknown toolsets: …" line before Hank's
+// actual answer. In quiet (-Q) piped mode the box's bottom border ("└──┘") is
+// NOT emitted, so there is no reliable reasoning-end marker. These helpers strip
+// the noise and best-effort separate the answer from the thinking WITHOUT ever
+// discarding the answer (thinking is shown collapsibly, so an imperfect split
+// is recoverable — an empty answer is not, hence the fail-safes).
+
+const REASONING_TOP_RE = /^┌─+\s*Reasoning\s*─*┐?$/u;
+const REASONING_BOTTOM_RE = /^└─*┘?$/u;
+const TOOL_TRACE_RE = /^┊/u;
+const NOISE_LINE_RES = [
+  /^Warning:\s*Unknown toolsets:.*$/i,
+  /^MemPalace MCP Server starting\.\.\.\s*$/i,
+];
+
+function isNoiseLine(line: string): boolean {
+  const t = line.trim();
+  return NOISE_LINE_RES.some((re) => re.test(t));
+}
+
+function isBorderLine(line: string): boolean {
+  const t = line.trim();
+  return REASONING_TOP_RE.test(t) || REASONING_BOTTOM_RE.test(t);
+}
+
+/** Strip warning/border noise from a streaming buffer while keeping text flowing. */
+export function denoiseAssistantStream(text: string): string {
+  return normalizeNewlines(text)
+    .split("\n")
+    .filter((line) => !isNoiseLine(line) && !isBorderLine(line))
+    .join("\n")
+    .replace(/^\n+/, "");
+}
+
+export type AssistantView = { answer: string; thinking: string | null };
+
+/** Split visible assistant content into the final answer and its thinking. */
+export function splitAssistantSegments(text: string): AssistantView {
+  const lines = normalizeNewlines(text ?? "").split("\n").filter((l) => !isNoiseLine(l));
+
+  const startIdx = lines.findIndex(
+    (l) => REASONING_TOP_RE.test(l.trim()) || TOOL_TRACE_RE.test(l.trim()),
+  );
+  if (startIdx === -1) {
+    return { answer: lines.join("\n").trim(), thinking: null };
+  }
+
+  const pre = lines.slice(0, startIdx).join("\n").trim();
+  const region = lines.slice(startIdx);
+  const botIdx = region.findIndex((l) => REASONING_BOTTOM_RE.test(l.trim()));
+
+  let answer: string;
+  let thinking: string;
+
+  if (botIdx >= 0) {
+    // Explicit close border present: clean split.
+    thinking = region.slice(0, botIdx).filter((l) => !isBorderLine(l)).join("\n").trim();
+    const after = region.slice(botIdx + 1).filter((l) => !isBorderLine(l)).join("\n").trim();
+    answer = [pre, after].filter(Boolean).join("\n\n").trim();
+  } else {
+    // No close border (common in -Q mode). Fall back to block/line heuristics.
+    const regionText = region.filter((l) => !isBorderLine(l)).join("\n").trim();
+    const blocks = regionText.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+    if (blocks.length >= 2) {
+      answer = blocks[blocks.length - 1];
+      thinking = blocks.slice(0, -1).join("\n\n");
+    } else {
+      // Single block: reasoning glued to the answer by single newlines.
+      const blockLines = regionText.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (blockLines.length >= 2) {
+        answer = blockLines[blockLines.length - 1];
+        thinking = blockLines.slice(0, -1).join("\n");
+      } else {
+        answer = regionText;
+        thinking = "";
+      }
+    }
+    if (pre) answer = [pre, answer].filter(Boolean).join("\n\n").trim();
+  }
+
+  thinking = normalizeHermesAssistantContent(thinking);
+
+  // Fail-safe: never surface an empty answer while there is content to show.
+  if (!answer.trim()) {
+    const fallback = region.filter((l) => !isBorderLine(l)).join("\n").trim() || lines.join("\n").trim();
+    return { answer: fallback, thinking: null };
+  }
+
+  return { answer: answer.trim(), thinking: thinking.trim() || null };
+}
+
+/** Full pipeline: raw persisted/streamed content → { answer, thinking }. */
+export function toAssistantView(text: string): AssistantView {
+  return splitAssistantSegments(toVisibleHermesAssistantContent(text));
+}
+
 function classifyStdoutContent(content: string): { content: string; error: string | null } {
   if (!content) return { content: "", error: null };
 

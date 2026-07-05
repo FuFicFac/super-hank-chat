@@ -143,3 +143,73 @@ test("sanitizeHermesDiagnosticDelta preserves real diagnostic errors", () => {
     "API call failed after 3 retries: HTTP 429: The usage limit has been reached\n",
   );
 });
+
+// ─── Assistant segmentation (reasoning / thinking split) ────────────────────
+import { splitAssistantSegments, denoiseAssistantStream } from "../lib/hermes/query-output";
+
+test("splitAssistantSegments: clean reply with only the toolsets warning", () => {
+  const raw = "Warning: Unknown toolsets: messaging\nhello there friend";
+  const { answer, thinking } = splitAssistantSegments(raw);
+  assert.equal(answer, "hello there friend");
+  assert.equal(thinking, null);
+});
+
+test("splitAssistantSegments: reasoning box with single-line answer (144)", () => {
+  const raw = "Warning: Unknown toolsets: messaging\n\n┌─ Reasoning ──────────┐\n144";
+  const { answer, thinking } = splitAssistantSegments(raw);
+  assert.equal(answer, "144");
+  assert.equal(thinking, null);
+});
+
+test("splitAssistantSegments: greeting — reasoning and answer on adjacent lines", () => {
+  const raw = [
+    "Warning: Unknown toolsets: messaging",
+    "",
+    "┌─ Reasoning ──────────┐",
+    "The user is greeting me casually, no task to do.",
+    "Hey EJ! Hank Jr. here, doing well. What's on the agenda?",
+  ].join("\n");
+  const { answer, thinking } = splitAssistantSegments(raw);
+  assert.equal(answer, "Hey EJ! Hank Jr. here, doing well. What's on the agenda?");
+  assert.equal(thinking, "The user is greeting me casually, no task to do.");
+});
+
+test("splitAssistantSegments: multi-paragraph reasoning, final block is the answer", () => {
+  const raw = [
+    "Warning: Unknown toolsets: messaging",
+    "┌─ Reasoning ──────────┐",
+    "The user asked whether 17 is prime.",
+    "",
+    "17 is prime. Let me verify divisibility by 2 and 3.",
+    "",
+    "17 is prime — its only divisors are 1 and itself.",
+  ].join("\n");
+  const { answer, thinking } = splitAssistantSegments(raw);
+  assert.equal(answer, "17 is prime — its only divisors are 1 and itself.");
+  assert.ok(thinking && thinking.includes("The user asked whether 17 is prime."));
+  assert.ok(thinking && thinking.includes("Let me verify"));
+});
+
+test("splitAssistantSegments: never returns empty answer (fail-safe)", () => {
+  const raw = "Warning: Unknown toolsets: messaging\n┌─ Reasoning ──────────┐\n";
+  const { answer } = splitAssistantSegments(raw);
+  // No real content beyond noise/border → answer is empty string, not a crash
+  assert.equal(typeof answer, "string");
+});
+
+test("splitAssistantSegments: explicit bottom border yields clean split", () => {
+  const raw = [
+    "┌─ Reasoning ──────────┐",
+    "thinking about it",
+    "└──────────────────────┘",
+    "The actual answer.",
+  ].join("\n");
+  const { answer, thinking } = splitAssistantSegments(raw);
+  assert.equal(answer, "The actual answer.");
+  assert.equal(thinking, "thinking about it");
+});
+
+test("denoiseAssistantStream strips warning and border lines", () => {
+  const raw = "Warning: Unknown toolsets: messaging\n┌─ Reasoning ──┐\nthinking\nanswer";
+  assert.equal(denoiseAssistantStream(raw), "thinking\nanswer");
+});

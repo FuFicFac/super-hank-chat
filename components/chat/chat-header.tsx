@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
 import { UiThemeToggle } from "@/components/layout/ui-theme-toggle";
+import { useShowThinking } from "@/hooks/use-show-thinking";
 import { HankAvatar } from "./hank-avatar";
 
 type Props = {
@@ -86,6 +87,7 @@ export function ChatHeader({
   const [themeMounted, setThemeMounted] = useState(false);
   useEffect(() => setThemeMounted(true), []);
   const isLight = themeMounted && theme === "light";
+  const { showThinking, toggleShowThinking } = useShowThinking();
   const isLive = connection === "connected";
   const uptime = useUptime(isLive);
   const bars = useTtsBars(speaking ?? false, 5);
@@ -138,6 +140,19 @@ export function ChatHeader({
       </button>
 
       <UiThemeToggle />
+
+      {/* Thinking dropdown toggle */}
+      <button
+        type="button"
+        onClick={toggleShowThinking}
+        title={showThinking ? "Hide Hank's thinking" : "Show Hank's thinking"}
+        aria-pressed={showThinking}
+        className="thinking-toggle classroom-button"
+        data-active={showThinking}
+      >
+        <span aria-hidden>💭</span>
+        <span className="thinking-toggle-label">Thinking {showThinking ? "On" : "Off"}</span>
+      </button>
 
       {/* Connection pill */}
       <button

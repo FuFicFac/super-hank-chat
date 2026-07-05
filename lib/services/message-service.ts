@@ -7,16 +7,15 @@ import {
 } from "@/lib/db/repositories/messages-repository";
 import { touchSession } from "@/lib/db/repositories/sessions-repository";
 import type { ApiMessage } from "@/types/api";
-import { toVisibleHermesAssistantContent } from "@/lib/hermes/query-output";
+import { toAssistantView } from "@/lib/hermes/query-output";
 
 export function listMessagesService(sessionId: string): ApiMessage[] {
   const rows = listMessagesForSession(getDb(), sessionId);
   return rows.flatMap((m) => {
-    const content =
-      m.role === "assistant" ? toVisibleHermesAssistantContent(m.content) : m.content;
-    if (m.role === "assistant" && !content) return [];
     if (m.role === "assistant") {
-      const { prose, artifact } = parseMessageForArtifact(content);
+      const { answer, thinking } = toAssistantView(m.content);
+      if (!answer) return [];
+      const { prose, artifact } = parseMessageForArtifact(answer);
       return [{
         id: m.id,
         role: m.role,
@@ -24,8 +23,10 @@ export function listMessagesService(sessionId: string): ApiMessage[] {
         status: m.status,
         createdAt: m.createdAt,
         artifact: artifact ?? null,
+        thinking,
       }];
     }
+    const content = m.content;
     return [{
       id: m.id,
       role: m.role,

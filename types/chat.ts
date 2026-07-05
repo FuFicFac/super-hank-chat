@@ -11,4 +11,6 @@ export type UiMessage = {
   streaming?: boolean;
   /** Parsed artifact attached to this message, if any */
   artifact?: Artifact | null;
+  /** Hank's reasoning/thinking for this message, shown collapsibly */
+  thinking?: string | null;
 };

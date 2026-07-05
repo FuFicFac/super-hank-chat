@@ -900,6 +900,97 @@ html[data-ui="classroom"] .message-card-assistant {
   padding: 14px 18px 14px 16px;
 }
 
+/* ─── Thinking dropdown (collapsible reasoning) ─────────────────────────── */
+.thinking-details {
+  margin-bottom: 8px;
+}
+.thinking-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--d-mute);
+  padding: 3px 8px;
+  border: 1px dashed var(--d-rule2);
+  border-radius: 6px;
+  width: fit-content;
+}
+.thinking-summary::-webkit-details-marker { display: none; }
+.thinking-icon { font-size: 12px; }
+.thinking-chevron {
+  transition: transform 150ms ease;
+  font-size: 14px;
+  line-height: 1;
+}
+.thinking-details[open] .thinking-chevron { transform: rotate(90deg); }
+.thinking-body {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--d-rule2);
+  color: var(--d-mute);
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+html[data-ui="classroom"] .thinking-summary {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: var(--c-bg-soft);
+  transition: background 120ms ease, color 120ms ease;
+}
+html[data-ui="classroom"] .thinking-summary:hover {
+  color: var(--c-ink);
+  background: var(--c-bg-raised);
+}
+html[data-ui="classroom"] .thinking-body {
+  margin-top: 8px;
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--c-radius-sm);
+  background: var(--c-bg-soft);
+  color: var(--c-ink-soft);
+  font-size: 14px;
+  opacity: 1;
+}
+
+/* Header thinking toggle */
+.thinking-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--d-mute);
+  border: 1px solid var(--d-rule2);
+}
+.thinking-toggle[data-active="true"] { color: var(--d-ink); border-color: var(--d-green); }
+html[data-ui="classroom"] .thinking-toggle {
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  color: var(--c-ink-soft);
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+html[data-ui="classroom"] .thinking-toggle[data-active="true"] {
+  color: var(--c-primary-ink);
+  background: var(--c-secondary);
+  border-color: var(--c-secondary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking-chevron { transition: none; }
+}
+
 .message-caret {
   display: inline-block;
   width: 8px;

@@ -3,6 +3,7 @@
 import type { Artifact } from "@/lib/artifacts/schema";
 import type { UiMessage } from "@/types/chat";
 import { useUiTheme } from "@/hooks/use-ui-theme";
+import { useShowThinking } from "@/hooks/use-show-thinking";
 import { HankAvatar } from "./hank-avatar";
 import { MessageMarkdown } from "./message-markdown";
 
@@ -20,6 +21,7 @@ export function MessageBubble({
   showAvatar?: boolean;
 }) {
   const { uiTheme } = useUiTheme();
+  const { showThinking } = useShowThinking();
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const isMeta = message.role === "system" || message.role === "status";
@@ -75,6 +77,18 @@ export function MessageBubble({
                 </button>
               )}
             </div>
+            {showThinking && message.thinking && !message.streaming && (
+              <details className="thinking-details">
+                <summary className="thinking-summary">
+                  <span className="thinking-icon" aria-hidden>💭</span>
+                  <span>Hank&rsquo;s thinking</span>
+                  <span className="thinking-chevron" aria-hidden>›</span>
+                </summary>
+                <div className="thinking-body">
+                  <MessageMarkdown content={message.thinking} />
+                </div>
+              </details>
+            )}
             <div className="message-card message-card-assistant">
               <MessageMarkdown content={message.content || (message.streaming ? "…" : "")} />
               {message.streaming && <span className="message-caret message-caret-assistant" />}
