@@ -233,6 +233,9 @@ export function ChatPageClient({
       }
       setConnection("connected");
       await loadStatus();
+    } catch {
+      setConnection("error");
+      setDiagnostics("Couldn't reach the server to connect.");
     } finally {
       setHeaderBusy(false);
     }
@@ -257,21 +260,25 @@ export function ChatPageClient({
 
   const onSend = useCallback(
     async (text: string) => {
-      const res = await fetch(`/api/sessions/${sessionId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text }),
-      });
-      if (res.status === 409) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        setDiagnostics(body?.error ?? "Connect to Hermes before sending messages.");
-        return;
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: text }),
+        });
+        if (res.status === 409) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          setDiagnostics(body?.error ?? "Connect to Hermes before sending messages.");
+          return;
+        }
+        if (!res.ok) {
+          setDiagnostics(`Send failed (${res.status})`);
+          return;
+        }
+        await loadMessages();
+      } catch {
+        setDiagnostics("Couldn't reach the server to send your message.");
       }
-      if (!res.ok) {
-        setDiagnostics(`Send failed (${res.status})`);
-        return;
-      }
-      await loadMessages();
     },
     [loadMessages, sessionId],
   );
@@ -288,11 +295,19 @@ export function ChatPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentId }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setAgentPickerOpen(false);
+        setDiagnostics(`Couldn't start a new chat (${res.status}). Try again.`);
+        return;
+      }
       const data = (await res.json()) as { session: { id: string } };
       setAgentPickerOpen(false);
       await refresh();
       router.push(`/sessions/${data.session.id}`);
+    } catch {
+      // Network/server hiccup — surface a friendly message instead of a crash.
+      setAgentPickerOpen(false);
+      setDiagnostics("Couldn't reach the server to start a new chat. Is the dev server running?");
     } finally {
       setCreatingSession(false);
     }
