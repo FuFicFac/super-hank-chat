@@ -3,6 +3,7 @@
 import type { Artifact } from "@/lib/artifacts/schema";
 import type { UiMessage } from "@/types/chat";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
+import { useEffect, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 
 export function MessageList({
@@ -17,6 +18,18 @@ export function MessageList({
   speaking?: boolean;
 }) {
   const { ref, scrollToBottom, isAtBottom } = useAutoScroll<HTMLDivElement>([messages]);
+
+  // When you send a message, always snap to the bottom (re-engage following)
+  // regardless of where you'd scrolled — a new message from you is intentional.
+  const lastSeenIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last && last.id !== lastSeenIdRef.current) {
+      const isNew = lastSeenIdRef.current !== null;
+      lastSeenIdRef.current = last.id;
+      if (isNew && last.role === "user") scrollToBottom("smooth");
+    }
+  }, [messages, scrollToBottom]);
 
   return (
     <div className="message-list-shell">
@@ -43,7 +56,7 @@ export function MessageList({
       {/* Scroll-to-bottom button — outside the scroll container so it stays visible */}
       {!isAtBottom && (
         <button
-          onClick={scrollToBottom}
+          onClick={() => scrollToBottom("smooth")}
           aria-label="Scroll to bottom"
           className="scroll-bottom-button classroom-button"
         >
