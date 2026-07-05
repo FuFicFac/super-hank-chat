@@ -10,6 +10,7 @@ export type SessionListItem = {
   status: string;
   updatedAt: number;
   messageCount: number;
+  agentId: string | null;
 };
 
 export function listSessions(db: HankDatabase): SessionListItem[] {
@@ -20,13 +21,21 @@ export function listSessions(db: HankDatabase): SessionListItem[] {
       status: chatSessions.status,
       updatedAt: chatSessions.updatedAt,
       messageCount: sql<number>`count(${chatMessages.id})`.mapWith(Number),
+      metadataJson: chatSessions.metadataJson,
     })
     .from(chatSessions)
     .leftJoin(chatMessages, eq(chatMessages.sessionId, chatSessions.id))
     .groupBy(chatSessions.id)
     .orderBy(desc(chatSessions.updatedAt))
     .all();
-  return rows;
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    updatedAt: row.updatedAt,
+    messageCount: row.messageCount,
+    agentId: parseSessionAgentId(row.metadataJson),
+  }));
 }
 
 export function getSessionById(
@@ -38,7 +47,7 @@ export function getSessionById(
 
 export function createSession(
   db: HankDatabase,
-  input: { title?: string },
+  input: { title?: string; agentId?: string },
 ): ChatSessionRow {
   const id = newSessionId();
   const title = input.title?.trim() || "New Session";
@@ -49,10 +58,20 @@ export function createSession(
     status: "disconnected",
     createdAt: t,
     updatedAt: t,
-    metadataJson: null,
+    metadataJson: input.agentId ? JSON.stringify({ agentId: input.agentId }) : null,
   };
   db.insert(chatSessions).values(row).run();
   return getSessionById(db, id)!;
+}
+
+export function parseSessionAgentId(metadataJson: string | null | undefined): string | null {
+  if (!metadataJson) return null;
+  try {
+    const parsed = JSON.parse(metadataJson) as { agentId?: unknown };
+    return typeof parsed.agentId === "string" ? parsed.agentId : null;
+  } catch {
+    return null;
+  }
 }
 
 export function updateSession(

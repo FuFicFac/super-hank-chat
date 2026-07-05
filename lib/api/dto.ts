@@ -1,6 +1,9 @@
 import type { ChatMessageRow, ChatSessionRow } from "@/lib/db/schema";
 import type { ApiMessage, ApiSessionDetail, ApiSessionSummary } from "@/types/api";
-import type { SessionListItem } from "@/lib/db/repositories/sessions-repository";
+import {
+  parseSessionAgentId,
+  type SessionListItem,
+} from "@/lib/db/repositories/sessions-repository";
 
 export function toSessionSummary(row: SessionListItem): ApiSessionSummary {
   return {
@@ -9,6 +12,7 @@ export function toSessionSummary(row: SessionListItem): ApiSessionSummary {
     status: row.status,
     updatedAt: row.updatedAt,
     messageCount: row.messageCount,
+    agentId: row.agentId,
   };
 }
 
@@ -17,6 +21,7 @@ export function toSessionDetail(row: ChatSessionRow): ApiSessionDetail {
     id: row.id,
     title: row.title,
     status: row.status,
+    agentId: parseSessionAgentId(row.metadataJson),
   };
 }
 

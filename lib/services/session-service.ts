@@ -3,6 +3,7 @@ import {
   createSession,
   getSessionById,
   listSessions,
+  parseSessionAgentId,
   type SessionListItem,
 } from "@/lib/db/repositories/sessions-repository";
 import type { ApiSessionDetail } from "@/types/api";
@@ -18,9 +19,10 @@ export function getSessionDetail(sessionId: string): ApiSessionDetail | null {
     id: row.id,
     title: row.title,
     status: row.status,
+    agentId: parseSessionAgentId(row.metadataJson),
   };
 }
 
-export function createSessionService(input: { title?: string }) {
+export function createSessionService(input: { title?: string; agentId?: string }) {
   return createSession(getDb(), input);
 }

@@ -9,6 +9,7 @@ import { SessionSidebar } from "@/components/chat/session-sidebar";
 import { TypingStream } from "@/components/chat/typing-stream";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
 import type { Artifact } from "@/lib/artifacts/schema";
+import type { AgentProfile } from "@/lib/agents/profiles";
 import type { ApiSessionSummary } from "@/types/api";
 import type { UiMessage } from "@/types/chat";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -27,6 +28,7 @@ type Props = {
   title: string;
   sessions: ApiSessionSummary[];
   sessionsLoading?: boolean;
+  agent: AgentProfile;
   messages: UiMessage[];
   connection: ConnectionUiState;
   headerBusy?: boolean;
@@ -166,6 +168,7 @@ export function ChatShell(props: Props) {
             onConnect={props.onConnect}
             onDisconnect={props.onDisconnect}
             diagnostics={props.diagnostics}
+            agent={props.agent}
             voiceEnabled={props.voiceEnabled}
             onToggleVoice={props.onToggleVoice}
             speaking={props.voiceSpeaking}
@@ -181,6 +184,7 @@ export function ChatShell(props: Props) {
           ) : (
             <MessageList
               messages={props.messages}
+              agent={props.agent}
               onViewArtifact={props.onViewArtifact}
               onSpeak={props.onSpeak}
               speaking={props.voiceSpeaking}

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createSessionBodySchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
+  agentId: z.string().trim().min(1).max(64).optional(),
 });
 
 export const postMessageBodySchema = z.object({

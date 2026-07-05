@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db/client";
+import { getAgentPersona } from "@/lib/agents/profiles";
 import { appendSessionEvent } from "@/lib/db/repositories/events-repository";
 import { deleteMessageById, insertMessage, updateMessageContent } from "@/lib/db/repositories/messages-repository";
 import {
@@ -22,6 +23,7 @@ const IDLE_MS = 300_000; // 5 minutes — allows Hank to complete tool-heavy res
 
 type SessionMetadata = {
   hermesSessionId?: string;
+  agentId?: string;
 };
 
 type ActiveMessage = {
@@ -352,7 +354,9 @@ export function sendToHermes(
 
   // Build per-query args — resume prior Hermes session if available
   const metadata = parseSessionMetadata(session.metadataJson);
-  const args = ["chat", "-Q", "-q", text];
+  const persona = metadata.hermesSessionId ? "" : getAgentPersona(metadata.agentId);
+  const q = persona ? `${persona}\n\n---\nUser: ${text}` : text;
+  const args = ["chat", "-Q", "-q", q];
   if (metadata.hermesSessionId) {
     args.push("--resume", metadata.hermesSessionId);
   }

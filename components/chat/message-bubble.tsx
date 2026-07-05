@@ -1,6 +1,7 @@
 "use client";
 
 import type { Artifact } from "@/lib/artifacts/schema";
+import type { AgentProfile } from "@/lib/agents/profiles";
 import type { UiMessage } from "@/types/chat";
 import { useUiTheme } from "@/hooks/use-ui-theme";
 import { useShowThinking } from "@/hooks/use-show-thinking";
@@ -9,12 +10,14 @@ import { MessageMarkdown } from "./message-markdown";
 
 export function MessageBubble({
   message,
+  agent,
   onViewArtifact,
   onSpeak,
   speaking,
   showAvatar,
 }: {
   message: UiMessage;
+  agent: AgentProfile;
   onViewArtifact?: (artifact: Artifact) => void;
   onSpeak?: (text: string) => void;
   speaking?: boolean;
@@ -59,12 +62,18 @@ export function MessageBubble({
         <div className="assistant-message-row">
           <div className="assistant-avatar-slot">
             {showAvatar && (
-              <HankAvatar size="sm" state={message.streaming ? "thinking" : "idle"} />
+              <HankAvatar
+                size="sm"
+                state={message.streaming ? "thinking" : "idle"}
+                src={agent.avatar}
+                name={agent.name}
+                color={agent.color}
+              />
             )}
           </div>
           <div className="assistant-message-body">
             <div className="message-meta">
-              <span>Hank · {ts}</span>
+              <span>{agent.name} · {ts}</span>
               {speaking && message.streaming && <TtsBars />}
               {!message.streaming && onSpeak && message.content.trim() && (
                 <button
@@ -81,7 +90,7 @@ export function MessageBubble({
               <details className="thinking-details">
                 <summary className="thinking-summary">
                   <span className="thinking-icon" aria-hidden>💭</span>
-                  <span>Hank&rsquo;s thinking</span>
+                  <span>{agent.name}&rsquo;s thinking</span>
                   <span className="thinking-chevron" aria-hidden>›</span>
                 </summary>
                 <div className="thinking-body">

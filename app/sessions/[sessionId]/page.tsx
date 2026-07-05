@@ -14,5 +14,11 @@ export default async function SessionPage({
   const { sessionId } = await params;
   const session = getSessionDetail(sessionId);
   if (!session) notFound();
-  return <ChatPageClient sessionId={sessionId} initialTitle={session.title} />;
+  return (
+    <ChatPageClient
+      sessionId={sessionId}
+      initialTitle={session.title}
+      initialAgentId={session.agentId}
+    />
+  );
 }

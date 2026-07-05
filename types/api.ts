@@ -6,12 +6,14 @@ export type ApiSessionSummary = {
   status: string;
   updatedAt: number;
   messageCount: number;
+  agentId: string | null;
 };
 
 export type ApiSessionDetail = {
   id: string;
   title: string;
   status: string;
+  agentId: string | null;
 };
 
 export type ApiMessage = {

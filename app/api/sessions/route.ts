@@ -1,5 +1,5 @@
 import { createSessionBodySchema } from "@/lib/api/validators";
-import { toSessionSummary } from "@/lib/api/dto";
+import { toSessionDetail, toSessionSummary } from "@/lib/api/dto";
 import { initDbSingleton } from "@/lib/db/client";
 import { listSessionsService, createSessionService } from "@/lib/services/session-service";
 
@@ -19,11 +19,5 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const row = createSessionService(parsed.data);
-  return Response.json({
-    session: {
-      id: row.id,
-      title: row.title,
-      status: row.status,
-    },
-  });
+  return Response.json({ session: toSessionDetail(row) });
 }

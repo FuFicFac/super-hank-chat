@@ -1,6 +1,7 @@
 "use client";
 
 import type { Artifact } from "@/lib/artifacts/schema";
+import type { AgentProfile } from "@/lib/agents/profiles";
 import type { UiMessage } from "@/types/chat";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { useEffect, useRef } from "react";
@@ -8,11 +9,13 @@ import { MessageBubble } from "./message-bubble";
 
 export function MessageList({
   messages,
+  agent,
   onViewArtifact,
   onSpeak,
   speaking,
 }: {
   messages: UiMessage[];
+  agent: AgentProfile;
   onViewArtifact: (artifact: Artifact) => void;
   onSpeak?: (text: string) => void;
   speaking?: boolean;
@@ -43,6 +46,7 @@ export function MessageList({
               <MessageBubble
                 key={m.id}
                 message={m}
+                agent={agent}
                 onViewArtifact={onViewArtifact}
                 onSpeak={onSpeak}
                 speaking={speaking}

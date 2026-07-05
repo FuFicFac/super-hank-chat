@@ -1,6 +1,7 @@
 "use client";
 
 import { AppFrame } from "@/components/layout/app-frame";
+import { AgentPicker } from "@/components/chat/agent-picker";
 import { ChatShell } from "@/components/chat/chat-shell";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
 import { useSessionList } from "@/hooks/use-session-list";
@@ -8,6 +9,7 @@ import { useSessionStream } from "@/hooks/use-session-stream";
 import { useVoiceMode } from "@/hooks/use-voice-mode";
 import { parseMessageForArtifact } from "@/lib/artifacts/parser";
 import type { Artifact } from "@/lib/artifacts/schema";
+import { getAgentProfile } from "@/lib/agents/profiles";
 import {
   denoiseAssistantStream,
   sanitizeHermesDiagnosticDelta,
@@ -35,9 +37,11 @@ function toUiMessage(m: ApiMessage): UiMessage {
 export function ChatPageClient({
   sessionId,
   initialTitle,
+  initialAgentId,
 }: {
   sessionId: string;
   initialTitle: string;
+  initialAgentId: string | null;
 }) {
   const router = useRouter();
   const { sessions, loading: sessionsLoading, refresh } = useSessionList();
@@ -46,6 +50,7 @@ export function ChatPageClient({
   const [connection, setConnection] = useState<ConnectionUiState>("disconnected");
   const [headerBusy, setHeaderBusy] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
+  const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null);
@@ -240,16 +245,21 @@ export function ChatPageClient({
     [loadMessages, sessionId],
   );
 
-  const onCreateSession = useCallback(async () => {
+  const onCreateSession = useCallback(() => {
+    setAgentPickerOpen(true);
+  }, []);
+
+  const onPickAgent = useCallback(async (agentId: string) => {
     setCreatingSession(true);
     try {
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ agentId }),
       });
       if (!res.ok) return;
       const data = (await res.json()) as { session: { id: string } };
+      setAgentPickerOpen(false);
       await refresh();
       router.push(`/sessions/${data.session.id}`);
     } finally {
@@ -264,6 +274,8 @@ export function ChatPageClient({
   const sortedSessions: ApiSessionSummary[] = useMemo(() => {
     return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [sessions]);
+  const currentSession = sortedSessions.find((s) => s.id === sessionId);
+  const agent = getAgentProfile(currentSession?.agentId ?? initialAgentId);
 
   return (
     <AppFrame>
@@ -272,6 +284,7 @@ export function ChatPageClient({
         title={title}
         sessions={sortedSessions}
         sessionsLoading={sessionsLoading}
+        agent={agent}
         messages={messages}
         connection={connection}
         headerBusy={headerBusy}
@@ -291,6 +304,13 @@ export function ChatPageClient({
         onToggleVoice={voice.toggle}
         onSpeak={voice.speak}
         voiceSpeaking={voice.speaking}
+      />
+      <AgentPicker
+        open={agentPickerOpen}
+        onClose={() => {
+          if (!creatingSession) setAgentPickerOpen(false);
+        }}
+        onPick={onPickAgent}
       />
     </AppFrame>
   );

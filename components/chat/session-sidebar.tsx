@@ -1,6 +1,7 @@
 "use client";
 
 import type { ApiSessionSummary } from "@/types/api";
+import { getAgentProfile } from "@/lib/agents/profiles";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -217,6 +218,7 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
             const isLive = s.status === "connected";
             const isDeleting = deletingIds.has(s.id);
             const isHovered = hoveredId === s.id;
+            const agent = getAgentProfile(s.agentId);
             return (
               <div
                 key={s.id}
@@ -246,6 +248,28 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
                       {s.title}
                     </div>
                     <div className="session-meta">
+                      <span
+                        title={agent.name}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          minWidth: 0,
+                          color: "var(--d-mute)",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: agent.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>{agent.name}</span>
+                      </span>
                       <span>{relativeTime(s.updatedAt)} ago</span>
                       {isLive && (
                         <span style={{ color: "var(--d-green)", marginLeft: "auto" }}>● Live</span>

@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ConnectionUiState } from "@/components/chat/connection-pill";
+import type { AgentProfile } from "@/lib/agents/profiles";
 import { UiThemeToggle } from "@/components/layout/ui-theme-toggle";
 import { useShowThinking } from "@/hooks/use-show-thinking";
 import { HankAvatar } from "./hank-avatar";
@@ -13,6 +14,7 @@ type Props = {
   sessionCode: string;
   messageCount: number;
   connection: ConnectionUiState;
+  agent: AgentProfile;
   busy?: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -73,6 +75,7 @@ export function ChatHeader({
   sessionCode,
   messageCount,
   connection,
+  agent,
   busy,
   onConnect,
   onDisconnect,
@@ -114,7 +117,13 @@ export function ChatHeader({
         ☰
       </button>
       <div className="chat-header-mark dispatch-only">H</div>
-      <HankAvatar size="md" state={speaking ? "speaking" : thinking ? "thinking" : "idle"} />
+      <HankAvatar
+        size="md"
+        state={speaking ? "speaking" : thinking ? "thinking" : "idle"}
+        src={agent.avatar}
+        name={agent.name}
+        color={agent.color}
+      />
       {/* Session info */}
       <div style={{ minWidth: 0, flex: 1 }}>
         <div className="chat-header-meta">
@@ -123,7 +132,7 @@ export function ChatHeader({
           <span>{messageCount} messages</span>
         </div>
         <div className="chat-header-title">
-          <span className="classroom-only">Super Hank Chat</span>
+          <span className="classroom-only">{agent.name}</span>
           <span className="dispatch-only">{title}</span>
         </div>
       </div>
@@ -145,7 +154,7 @@ export function ChatHeader({
       <button
         type="button"
         onClick={toggleShowThinking}
-        title={showThinking ? "Hide Hank's thinking" : "Show Hank's thinking"}
+        title={showThinking ? `Hide ${agent.name}'s thinking` : `Show ${agent.name}'s thinking`}
         aria-pressed={showThinking}
         className="thinking-toggle classroom-button"
         data-active={showThinking}
