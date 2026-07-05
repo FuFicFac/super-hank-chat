@@ -3,7 +3,7 @@
 import type { ApiSessionSummary } from "@/types/api";
 import { getAgentProfile } from "@/lib/agents/profiles";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -14,6 +14,14 @@ type Props = {
   creating?: boolean;
   onDeleted?: () => void;
   onSelect?: () => void;
+};
+
+type SearchResult = {
+  sessionId: string;
+  title: string;
+  agentId: string | null;
+  snippet: string;
+  createdAt: number;
 };
 
 /** Derive a stable HNK-XXXX code from a session ID (UUID). */
@@ -40,9 +48,47 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [clearingEmpty, setClearingEmpty] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const live = sessions.filter((s) => s.status === "connected");
   const emptyCount = sessions.filter((s) => s.messageCount === 0).length;
+  const trimmedSearch = searchQuery.trim();
+  const searchActive = trimmedSearch.length > 0;
+
+  useEffect(() => {
+    if (!trimmedSearch) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      fetch(`/api/search?q=${encodeURIComponent(trimmedSearch)}`, {
+        signal: controller.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Search failed (${res.status})`);
+          return (await res.json()) as { results: SearchResult[] };
+        })
+        .then((data) => setSearchResults(data.results))
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          setSearchResults([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearching(false);
+        });
+    }, 200);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [trimmedSearch]);
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
@@ -74,6 +120,12 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
     } finally {
       setClearingEmpty(false);
     }
+  };
+
+  const handleSearchSelect = (sessionId: string) => {
+    setSearchQuery("");
+    onSelect?.();
+    router.push(`/sessions/${sessionId}`);
   };
 
   if (collapsed) {
@@ -153,6 +205,54 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
         <span style={{ opacity: 0.7 }}>⌘N</span>
       </button>
 
+      {/* Search */}
+      <div style={{ padding: "0 16px 12px", flexShrink: 0 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            alignItems: "center",
+            gap: 8,
+            border: "1px solid var(--d-rule)",
+            background: "var(--d-bg)",
+            padding: "7px 9px",
+          }}
+        >
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search sessions…"
+            aria-label="Search sessions"
+            style={{
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "var(--d-ink)",
+              fontFamily: "inherit",
+              fontSize: 12,
+            }}
+          />
+          {searchActive && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "var(--d-mute)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontSize: 11,
+                padding: 0,
+              }}
+            >
+              ✕ clear
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Filter tabs */}
       <div className="sidebar-filter sidebar-tabs">
         <span style={{
@@ -185,25 +285,126 @@ export function SessionSidebar({ sessions, activeId, loading, onCreate, creating
       </div>
 
       {/* Column headers */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "64px 1fr 36px 20px",
-        padding: "8px 16px 6px",
-        fontSize: 10,
-        color: "var(--d-mute3)",
-        letterSpacing: 1.6,
-        borderBottom: "1px solid var(--d-rule)",
-        flexShrink: 0,
-      }}>
-        <span>Code</span>
-        <span>Title / age</span>
-        <span style={{ textAlign: "right" }}>Msg</span>
-        <span />
-      </div>
+      {searchActive ? (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "64px 1fr",
+          padding: "8px 16px 6px",
+          fontSize: 10,
+          color: "var(--d-mute3)",
+          letterSpacing: 1.6,
+          borderBottom: "1px solid var(--d-rule)",
+          flexShrink: 0,
+        }}>
+          <span>Code</span>
+          <span>Search results</span>
+        </div>
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "64px 1fr 36px 20px",
+          padding: "8px 16px 6px",
+          fontSize: 10,
+          color: "var(--d-mute3)",
+          letterSpacing: 1.6,
+          borderBottom: "1px solid var(--d-rule)",
+          flexShrink: 0,
+        }}>
+          <span>Code</span>
+          <span>Title / age</span>
+          <span style={{ textAlign: "right" }}>Msg</span>
+          <span />
+        </div>
+      )}
 
       {/* Session list */}
       <div className="session-list">
-        {loading ? (
+        {searchActive ? (
+          searching ? (
+            <div style={{ padding: "16px", fontSize: 11, color: "var(--d-mute)" }}>
+              Searching…
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div style={{ padding: "16px", fontSize: 11, color: "var(--d-mute)" }}>
+              No matches
+            </div>
+          ) : (
+            searchResults.map((result, i) => {
+              const isActive = result.sessionId === activeId;
+              const code = sessionCode(result.sessionId);
+              const agent = getAgentProfile(result.agentId);
+              return (
+                <button
+                  key={result.sessionId}
+                  type="button"
+                  className="session-link"
+                  data-active={isActive}
+                  data-alt={i % 2 === 1}
+                  onClick={() => handleSearchSelect(result.sessionId)}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <div
+                    className="session-code"
+                    style={{
+                      color: isActive ? "var(--d-green)" : "var(--d-mute)",
+                      paddingTop: 1,
+                    }}
+                  >
+                    {code}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="session-title">{result.title}</div>
+                    <div className="session-meta">
+                      <span
+                        title={agent.name}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          minWidth: 0,
+                          color: "var(--d-mute)",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: agent.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span>{agent.name}</span>
+                      </span>
+                      <span>{relativeTime(result.createdAt)} ago</span>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        color: "var(--d-mute)",
+                        fontSize: 11,
+                        lineHeight: 1.35,
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                    >
+                      {result.snippet}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )
+        ) : loading ? (
           <div style={{ padding: "16px", fontSize: 11, color: "var(--d-mute)" }}>
             Loading…
           </div>

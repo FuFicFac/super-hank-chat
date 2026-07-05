@@ -12,7 +12,8 @@ import type { Artifact } from "@/lib/artifacts/schema";
 import type { AgentProfile } from "@/lib/agents/profiles";
 import type { ApiSessionSummary } from "@/types/api";
 import type { UiMessage } from "@/types/chat";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** Derive a stable HNK-XXXX code from a session ID. */
 function sessionCode(id: string): string {
@@ -46,6 +47,7 @@ type Props = {
   onViewArtifact: (artifact: Artifact) => void;
   voiceEnabled?: boolean;
   onToggleVoice?: () => void;
+  onExportMarkdown: () => void;
   onSpeak?: (text: string) => void;
   voiceSpeaking?: boolean;
 };
@@ -63,8 +65,10 @@ const MIN_ARTIFACT_WIDTH = 320;
 const MIN_CHAT_WIDTH = 340;
 
 export function ChatShell(props: Props) {
+  const router = useRouter();
   const hasArtifact = props.currentArtifact != null;
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [artifactWidth, setArtifactWidth] = useState(DEFAULT_ARTIFACT_WIDTH);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,23 @@ export function ChatShell(props: Props) {
   const currentSession = props.sessions.find((s) => s.id === props.sessionId);
   const code = sessionCode(props.sessionId);
   const msgCount = currentSession?.messageCount ?? props.messages.length;
+  const normalizedPaletteQuery = paletteQuery.trim().toLowerCase();
+  const filteredCommands = useMemo(() => {
+    if (!normalizedPaletteQuery) return PALETTE_COMMANDS;
+    return PALETTE_COMMANDS.filter((command) =>
+      command.label.toLowerCase().includes(normalizedPaletteQuery),
+    );
+  }, [normalizedPaletteQuery]);
+  const filteredSessions = useMemo(() => {
+    if (!normalizedPaletteQuery) return [];
+    return props.sessions.filter((session) => {
+      const code = sessionCode(session.id).toLowerCase();
+      return (
+        code.includes(normalizedPaletteQuery) ||
+        session.title.toLowerCase().includes(normalizedPaletteQuery)
+      );
+    });
+  }, [normalizedPaletteQuery, props.sessions]);
 
   // Reset width when artifact closes/opens
   useEffect(() => {
@@ -115,12 +136,42 @@ export function ChatShell(props: Props) {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const handlePaletteAction = (action: string) => {
+  const closePalette = () => {
     setPaletteOpen(false);
+    setPaletteQuery("");
+  };
+
+  const handlePaletteAction = (action: string) => {
+    closePalette();
     if (action === "new") props.onCreateSession();
+    if (action === "mic") props.onToggleVoice?.();
     if (action === "reconnect") {
       props.onDisconnect();
       setTimeout(() => props.onConnect(), 300);
+    }
+    if (action === "artifact" && hasArtifact) {
+      return;
+    }
+    if (action === "export") props.onExportMarkdown();
+  };
+
+  const handlePaletteSession = (sessionId: string) => {
+    closePalette();
+    router.push(`/sessions/${sessionId}`);
+  };
+
+  const handlePaletteKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    const firstCommand = filteredCommands[0];
+    if (firstCommand) {
+      e.preventDefault();
+      handlePaletteAction(firstCommand.action);
+      return;
+    }
+    const firstSession = filteredSessions[0];
+    if (firstSession) {
+      e.preventDefault();
+      handlePaletteSession(firstSession.id);
     }
   };
 
@@ -260,7 +311,7 @@ export function ChatShell(props: Props) {
       {/* ⌘K Command Palette */}
       {paletteOpen && (
         <div
-          onClick={() => setPaletteOpen(false)}
+          onClick={closePalette}
           style={{
             position: "absolute",
             inset: 0,
@@ -294,6 +345,9 @@ export function ChatShell(props: Props) {
             <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--d-rule)" }}>
               <input
                 autoFocus
+                value={paletteQuery}
+                onChange={(e) => setPaletteQuery(e.target.value)}
+                onKeyDown={handlePaletteKeyDown}
                 placeholder="type a command or session code…"
                 style={{
                   width: "100%",
@@ -308,7 +362,7 @@ export function ChatShell(props: Props) {
             </div>
             {/* Commands */}
             <div style={{ maxHeight: 280, overflowY: "auto" }}>
-              {PALETTE_COMMANDS.map(({ icon, label, kbd, action }, idx) => (
+              {filteredCommands.map(({ icon, label, kbd, action }, idx) => (
                 <button
                   key={action}
                   onClick={() => handlePaletteAction(action)}
@@ -338,6 +392,61 @@ export function ChatShell(props: Props) {
                   <span style={{ fontSize: 10, color: "var(--d-blue)", letterSpacing: 1.2 }}>{kbd}</span>
                 </button>
               ))}
+              {filteredSessions.length > 0 && (
+                <div style={{
+                  padding: "7px 14px 5px",
+                  fontSize: 10,
+                  letterSpacing: 1.6,
+                  color: "var(--d-mute3)",
+                  borderBottom: "1px solid var(--d-rule3)",
+                }}>
+                  SESSIONS
+                </div>
+              )}
+              {filteredSessions.map((session) => {
+                const code = sessionCode(session.id);
+                const isActive = session.id === props.sessionId;
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => handlePaletteSession(session.id)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 14px",
+                      display: "grid",
+                      gridTemplateColumns: "76px 1fr",
+                      alignItems: "center",
+                      gap: 10,
+                      background: isActive ? "var(--d-bg-row-hot)" : "transparent",
+                      border: "none",
+                      borderBottom: "1px solid var(--d-rule3)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color: "var(--d-ink)",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <span style={{ color: "var(--d-blue)", fontSize: 10, letterSpacing: 1.2 }}>
+                      {code}
+                    </span>
+                    <span style={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontFamily: "var(--font-serif, Newsreader, Georgia, serif)",
+                      fontSize: 14,
+                    }}>
+                      {session.title}
+                    </span>
+                  </button>
+                );
+              })}
+              {filteredCommands.length === 0 && filteredSessions.length === 0 && (
+                <div style={{ padding: "16px 14px", fontSize: 12, color: "var(--d-mute)" }}>
+                  No commands or sessions
+                </div>
+              )}
             </div>
           </div>
         </div>

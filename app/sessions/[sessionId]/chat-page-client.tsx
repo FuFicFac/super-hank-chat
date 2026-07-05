@@ -34,6 +34,23 @@ function toUiMessage(m: ApiMessage): UiMessage {
   };
 }
 
+function sessionCode(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = ((h << 5) - h + id.charCodeAt(i)) >>> 0;
+  }
+  return "HNK-" + String(h % 10000).padStart(4, "0");
+}
+
+function safeMarkdownFilename(value: string): string {
+  const cleaned = value
+    .trim()
+    .replace(/[^\w .-]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+  return cleaned || "session";
+}
+
 export function ChatPageClient({
   sessionId,
   initialTitle,
@@ -283,6 +300,32 @@ export function ChatPageClient({
   }, [sessions]);
   const currentSession = sortedSessions.find((s) => s.id === sessionId);
   const agent = getAgentProfile(currentSession?.agentId ?? initialAgentId);
+  const onExportMarkdown = useCallback(() => {
+    const transcript = messages
+      .filter((message) => !message.streaming && message.content.trim())
+      .map((message) => {
+        const speaker =
+          message.role === "assistant"
+            ? agent.name
+            : message.role === "user"
+              ? "Ekello"
+              : String(message.role);
+        const time = new Date(message.createdAt * 1000).toLocaleString();
+        return `## ${speaker} · ${time}\n\n${message.content.trim()}`;
+      })
+      .join("\n\n");
+
+    const blob = new Blob([transcript], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const fallbackCode = sessionCode(sessionId);
+    link.href = url;
+    link.download = `${safeMarkdownFilename(currentSession?.title || title || fallbackCode)}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, [agent.name, currentSession?.title, messages, sessionId, title]);
 
   return (
     <AppFrame>
@@ -309,6 +352,7 @@ export function ChatPageClient({
         onViewArtifact={(artifact) => setCurrentArtifact(artifact)}
         voiceEnabled={voice.enabled}
         onToggleVoice={voice.toggle}
+        onExportMarkdown={onExportMarkdown}
         onSpeak={voice.speak}
         voiceSpeaking={voice.speaking}
       />
