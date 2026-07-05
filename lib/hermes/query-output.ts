@@ -90,11 +90,23 @@ function isBorderLine(line: string): boolean {
   return REASONING_TOP_RE.test(t) || REASONING_BOTTOM_RE.test(t);
 }
 
+export function extractToolActivity(text: string): string[] {
+  const activities: string[] = [];
+  for (const line of normalizeNewlines(text).split("\n")) {
+    if (!TOOL_TRACE_RE.test(line.trim())) continue;
+    const activity = line.trim().replace(TOOL_TRACE_RE, "").trim();
+    if (!activity) continue;
+    if (activities[activities.length - 1] === activity) continue;
+    activities.push(activity);
+  }
+  return activities;
+}
+
 /** Strip warning/border noise from a streaming buffer while keeping text flowing. */
 export function denoiseAssistantStream(text: string): string {
   return normalizeNewlines(text)
     .split("\n")
-    .filter((line) => !isNoiseLine(line) && !isBorderLine(line))
+    .filter((line) => !isNoiseLine(line) && !isBorderLine(line) && !TOOL_TRACE_RE.test(line.trim()))
     .join("\n")
     .replace(/^\n+/, "");
 }
@@ -210,4 +222,3 @@ export function extractHermesQueryResult(raw: string): HermesQueryResult {
   const classified = classifyStdoutContent(normalized);
   return { ...classified, sessionId };
 }
-

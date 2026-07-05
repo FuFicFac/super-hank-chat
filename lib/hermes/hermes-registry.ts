@@ -60,6 +60,12 @@ function touchActivity(sessionId: string) {
   sessionLastActivity.set(sessionId, nowUnixMs());
 }
 
+function cleanupInactiveSessionRuntime(sessionId: string) {
+  if (activeQueryAdapters.has(sessionId)) return;
+  sessionStderrTail.delete(sessionId);
+  sessionLastActivity.delete(sessionId);
+}
+
 function parseSessionMetadata(metadataJson: string | null | undefined): SessionMetadata {
   if (!metadataJson) return {};
   try {
@@ -256,6 +262,7 @@ function wireQueryAdapter(sessionId: string, adapter: HermesAdapter) {
     if (activeMessageIds.has(sessionId)) {
       finalizeAssistantMessage(sessionId);
     }
+    cleanupInactiveSessionRuntime(sessionId);
   });
   adapter.on("error", (err) => {
     activeQueryAdapters.delete(sessionId);
@@ -275,6 +282,7 @@ function wireQueryAdapter(sessionId: string, adapter: HermesAdapter) {
         code: (err as NodeJS.ErrnoException).code,
       }),
     );
+    cleanupInactiveSessionRuntime(sessionId);
   });
 }
 

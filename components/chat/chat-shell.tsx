@@ -35,6 +35,7 @@ type Props = {
   headerBusy?: boolean;
   composerDisabled?: boolean;
   typing?: boolean;
+  toolActivity?: string | null;
   diagnostics?: string | null;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -130,7 +131,10 @@ export function ChatShell(props: Props) {
         e.preventDefault();
         setPaletteOpen((v) => !v);
       }
-      if (e.key === "Escape") setPaletteOpen(false);
+      if (e.key === "Escape") {
+        setPaletteOpen(false);
+        setSidebarOpen(false);
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -242,7 +246,11 @@ export function ChatShell(props: Props) {
             />
           )}
 
-          <TypingStream visible={Boolean(props.typing)} />
+          <TypingStream
+            visible={Boolean(props.typing)}
+            agentName={props.agent.name}
+            toolActivity={props.toolActivity}
+          />
 
           <Composer
             disabled={props.composerDisabled}

@@ -12,6 +12,7 @@ import type { Artifact } from "@/lib/artifacts/schema";
 import { getAgentProfile } from "@/lib/agents/profiles";
 import {
   denoiseAssistantStream,
+  extractToolActivity,
   sanitizeHermesDiagnosticDelta,
   toAssistantView,
   toVisibleHermesAssistantContent,
@@ -70,6 +71,7 @@ export function ChatPageClient({
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
+  const [toolActivity, setToolActivity] = useState<string | null>(null);
   const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(null);
   const streamingAssistantRawRef = useRef<Map<string, string>>(new Map());
   const voice = useVoiceMode();
@@ -112,6 +114,7 @@ export function ChatPageClient({
     if (type === "session.disconnected") {
       setConnection("disconnected");
       setTyping(false);
+      setToolActivity(null);
       void loadMessages();
       return;
     }
@@ -134,6 +137,7 @@ export function ChatPageClient({
       if (!messageId) return;
       streamingAssistantRawRef.current.set(messageId, "");
       setTyping(true);
+      setToolActivity(null);
       setMessages((prev) => {
         if (prev.some((m) => m.id === messageId)) return prev;
         return [
@@ -157,6 +161,8 @@ export function ChatPageClient({
       const prevRaw = streamingAssistantRawRef.current.get(messageId) ?? "";
       const raw = prevRaw + delta;
       streamingAssistantRawRef.current.set(messageId, raw);
+      const activities = extractToolActivity(raw);
+      setToolActivity(activities.length > 0 ? activities[activities.length - 1] : null);
       // During streaming show denoised text live (warning + reasoning borders
       // stripped) so Hank's thinking is visible as it arrives; the clean
       // answer/thinking split happens on message.completed.
@@ -181,6 +187,7 @@ export function ChatPageClient({
       const messageId = typeof payload.messageId === "string" ? payload.messageId : "";
       const content = typeof payload.content === "string" ? payload.content : "";
       streamingAssistantRawRef.current.delete(messageId);
+      setToolActivity(null);
       const { answer, thinking } = toAssistantView(content);
       const { prose, artifact } = parseMessageForArtifact(answer);
       if (artifact) setCurrentArtifact(artifact);
@@ -340,6 +347,7 @@ export function ChatPageClient({
         headerBusy={headerBusy}
         composerDisabled={connection !== "connected"}
         typing={typing}
+        toolActivity={toolActivity}
         diagnostics={diagnostics}
         onConnect={onConnect}
         onDisconnect={onDisconnect}

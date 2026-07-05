@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  extractToolActivity,
   extractHermesQueryResult,
   normalizeHermesAssistantContent,
   sanitizeHermesDiagnosticDelta,
@@ -130,6 +131,15 @@ test("toVisibleHermesAssistantContent hides stored assistant API failure text fr
     toVisibleHermesAssistantContent("API call failed after 3 retries: HTTP 429: The usage limit has been reached"),
     "",
   );
+});
+
+test("extractToolActivity returns tool trace lines in order", () => {
+  const raw = ["Thinking", "┊ search web", "answer forming", "┊ read file"].join("\n");
+  assert.deepEqual(extractToolActivity(raw), ["search web", "read file"]);
+});
+
+test("extractToolActivity returns an empty list when no tool trace exists", () => {
+  assert.deepEqual(extractToolActivity("plain answer\nwithout tool traces"), []);
 });
 
 test("sanitizeHermesDiagnosticDelta hides known benign startup noise", () => {

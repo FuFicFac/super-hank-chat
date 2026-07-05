@@ -9,6 +9,14 @@ import Database from "better-sqlite3";
 const DB_PATH = path.join(process.cwd(), "data", "super-hank-chat.db");
 const MIGRATION_SQL = path.join(process.cwd(), "drizzle", "0000_init.sql");
 
+function ensureIndexes(db: Database.Database) {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_messages_session_seq ON chat_messages(session_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_messages_session_created ON chat_messages(session_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_events_session ON session_events(session_id);
+  `);
+}
+
 function main() {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) {
@@ -24,6 +32,7 @@ function main() {
     .get();
 
   if (exists) {
+    ensureIndexes(db);
     console.log("✅ Database already initialized at", DB_PATH);
     db.close();
     return;
@@ -31,6 +40,7 @@ function main() {
 
   const sql = fs.readFileSync(MIGRATION_SQL, "utf-8");
   db.exec(sql);
+  ensureIndexes(db);
   db.close();
 
   console.log("✅ Database initialized at", DB_PATH);
